@@ -1223,3 +1223,58 @@ input,textarea,select{font-size:16px}   /* sotto i 16px iOS zooma da solo */
 .cost__acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
 .cost--pool{background:transparent;border-style:dashed}
 .cost--pool .cost__d{margin-left:auto;color:var(--fg3)}
+
+/* ---- elenco degli extra di una giornata ---- */
+.exsum{
+  display:flex;align-items:baseline;gap:10px;
+  padding:10px 12px;margin-bottom:9px;border-radius:9px;
+  background:color-mix(in srgb,var(--raise) 60%,transparent);
+}
+.exsum span{
+  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--fg3);
+}
+.exsum b{
+  margin-left:auto;font-family:var(--f-mono);font-size:15px;font-weight:500;
+  font-variant-numeric:tabular-nums;
+}
+.exrow{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 2px;border-bottom:1px solid var(--line);
+}
+.exrow:last-of-type{border-bottom:0}
+.exrow__b{flex:1;min-width:0;text-align:left}
+.exrow__b b{display:block;font-size:13.6px;font-weight:600;letter-spacing:-.005em}
+.exrow__b span{
+  display:block;font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--fg3);margin-top:2px;
+}
+.exrow__v{
+  flex:0 0 auto;text-align:right;font-family:var(--f-mono);font-size:13px;
+  font-variant-numeric:tabular-nums;
+}
+.exrow__v em{display:block;font-style:normal;font-size:10.5px;color:var(--fg3);margin-top:1px}
+.exrow__x{flex:0 0 auto;padding:6px;opacity:.4}
+.exrow__x svg{width:15px;height:15px;stroke:var(--open);fill:none;stroke-width:1.8}
+
+/* ---- extra raggruppati per giornata, in Budget → Spese ---- */
+.exday{
+  display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  padding:10px 2px;border-bottom:1px solid var(--line);
+}
+.exday:last-child{border-bottom:0}
+.exday:active{background:color-mix(in srgb,var(--raise) 50%,transparent)}
+.exday__d{
+  flex:0 0 auto;font-family:var(--f-mono);font-size:10.5px;
+  padding:3px 7px;border-radius:5px;border:1px solid var(--line2);color:var(--fg2);
+}
+.exday__b{flex:1;min-width:0}
+.exday__b b{display:block;font-size:13.6px;font-weight:600;letter-spacing:-.005em}
+.exday__b span{
+  display:block;font-size:11.8px;color:var(--fg3);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.exday__v{
+  flex:0 0 auto;font-family:var(--f-mono);font-size:13px;
+  font-variant-numeric:tabular-nums;
+}

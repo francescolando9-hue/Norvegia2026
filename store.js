@@ -226,18 +226,52 @@ const Store = (() => {
   const looseIn = catId => S.expenses.filter(e => !e.lineId && e.cat === catId);
 
   /* Spese "extra" di una giornata.
-     Extra = tutto ciò che non è il prezzo di un'attività già
-     preventivata. In pratica: le spese senza voce, e quelle su
-     voci cumulative (cibo, carburante, pedaggi, varie), che per
-     definizione non sono il costo di una singola tappa.
-     Il safari da 260 € non è un extra: è il piano. Il caffè sì. */
-  function isExtra(e) {
-    if (!e.lineId) return true;
-    const lo = lineOf(e.lineId);
-    return !lo || !!lo.line.pool;
+
+     Extra = quello che hai speso quel giorno e che NON è una delle
+     tappe segnate in quella giornata. Se il giorno ha volo, hotel e
+     cena, tutto ciò che registri e non è una di quelle tre è extra.
+
+     Serve sapere da quale tappa arriva una spesa: per questo ogni
+     spesa porta uno `stopId`. Le voci con un prezzo proprio (voli,
+     alloggi, esperienze, immersioni) restano sempre fuori dagli
+     extra, perché sono per definizione il costo di una tappa. */
+
+  function dayStopKeys(dayId) {
+    const d = TRIP.days.find(x => x.id === dayId);
+    if (!d) return [];
+    const keys = d.fixed.map(f => dayId + "/" + (f.id || f.title));
+    (S.extra[dayId] || []).forEach(f => keys.push(dayId + "/" + (f.id || f.title)));
+    if (d.stay) keys.push(dayId + "/stay");
+    return keys;
   }
-  const extrasOn = date => S.expenses.filter(e => e.date === date && isExtra(e));
+
+  function isExtraOn(e, day) {
+    if (e.date !== day.date) return false;
+    // registrata da una tappa di questa giornata: è il costo di quella tappa
+    if (e.stopId && dayStopKeys(day.id).includes(e.stopId)) return false;
+    // voce con un preventivo proprio: appartiene a una tappa, non è un extra
+    if (e.lineId) {
+      const lo = lineOf(e.lineId);
+      if (lo && !lo.line.pool) return false;
+    }
+    return true;
+  }
+
+  function extrasOn(date) {
+    const day = TRIP.days.find(d => d.date === date);
+    if (!day) return S.expenses.filter(e => e.date === date && !e.lineId);
+    return S.expenses.filter(e => isExtraOn(e, day));
+  }
   const extraTotal = date => extrasOn(date).reduce((a, e) => a + toEur(e), 0);
+
+  /* tutti gli extra del viaggio, raggruppati per giornata */
+  function extrasByDay() {
+    return TRIP.days.map(d => {
+      const voci = extrasOn(d.date);
+      return { day: d, voci, tot: voci.reduce((a, e) => a + toEur(e), 0) };
+    }).filter(x => x.voci.length);
+  }
+  const extrasTotalAll = () => extrasByDay().reduce((a, x) => a + x.tot, 0);
 
   function lineOf(lineId) {
     for (const sec of TRIP.budget) {
@@ -377,7 +411,7 @@ const Store = (() => {
     S, save, uid, seedOnce,
     getEdit, setEdit, pinFor, setPin, docNum, setDocNum, checks, muteCheck, day, days,
     addExpense, updateExpense, removeExpense, toEur,
-    expensesFor, spentOn, looseIn, lineOf, isExtra, extrasOn, extraTotal,
+    expensesFor, spentOn, looseIn, lineOf, extrasOn, extraTotal, extrasByDay, extrasTotalAll,
     totals, sectionTotals,
     Files, exportJson, importJson, reset,
     get memoryOnly() { return memoryOnly; }

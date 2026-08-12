@@ -60,7 +60,8 @@ const Views = (() => {
      sheet: spesa
      ======================================================== */
   function lineOptions(selected) {
-    let html = `<option value="">— scegli —</option>`;
+    let html = `<option value="">— scegli —</option>`
+      + `<option value="loose:extra"${selected === "loose:extra" ? " selected" : ""}>Fuori piano · nessuna voce</option>`;
     TRIP.budget.forEach(sec => {
       html += `<optgroup label="${esc(sec.section)}">`;
       sec.lines.forEach(l => {
@@ -81,7 +82,10 @@ const Views = (() => {
 
   function expenseSheet(existing, prefill = {}) {
     const e = existing || {};
-    const sel = e.lineId ? "line:" + e.lineId : (e.cat && !e.lineId ? "loose:" + e.cat : (prefill.lineId ? "line:" + prefill.lineId : ""));
+    const sel = e.lineId ? "line:" + e.lineId
+      : (e.cat && !e.lineId ? "loose:" + e.cat
+      : (prefill.lineId ? "line:" + prefill.lineId
+      : (prefill.extra ? "loose:extra" : "")));
     const cur = e.cur || prefill.cur || "NOK";
 
     sheet(existing ? "Modifica spesa" : "Registra una spesa", (body, done) => {
@@ -95,7 +99,7 @@ const Views = (() => {
             </div>
           </div>`, `Cambio in uso: 1 € = ${num(S.fx)} NOK`)}
         ${field("Voce di budget", `<select class="in" id="ex-line">${lineOptions(sel)}</select>`,
-                "Se non c'entra con nessuna voce, scegli \u201cFuori piano\u201d della sezione giusta.")}
+                "Per un caff\u00e8 o un parcheggio va bene \u201cFuori piano\u201d: sceglierne una serve solo a far comparire la spesa nella sezione giusta del budget.")}
         ${field("Giorno", `<select class="in" id="ex-day">${dayOptions(e.date || prefill.date)}</select>`)}
         ${field("Nota", `<input class="in" id="ex-note" type="text" maxlength="80"
                  value="${esc(e.note || "")}" placeholder="Benzina a Finnsnes">`)}
@@ -133,7 +137,10 @@ const Views = (() => {
           date: $("#ex-day", body).value,
           note: $("#ex-note", body).value.trim(),
           lineId: kind === "line" ? id : null,
-          cat: kind === "line" ? (lo && lo.sec ? lo.sec.id : "extra") : id
+          cat: kind === "line" ? (lo && lo.sec ? lo.sec.id : "extra") : id,
+          // la tappa da cui è stata registrata: serve alle voci cumulative,
+          // dove il totale della voce non è il costo di una singola tappa
+          stopId: existing ? existing.stopId : (prefill.stopId || null)
         };
         if (existing) Store.updateExpense(existing.id, rec);
         else Store.addExpense(rec);
@@ -515,23 +522,78 @@ const Views = (() => {
     return row;
   }
 
+  /* ========================================================
+     sheet: gli extra di una giornata
+     Il caffè, il parcheggio, il panino. Tutto ciò che non era
+     preventivato come attività. Qui li vedi, li correggi e li
+     cancelli, senza passare dal registro generale.
+     ======================================================== */
+  function extraSheet(d) {
+    sheet("Extra · " + d.dow + " " + d.dateLabel, (body, done) => {
+      body.innerHTML = `<div id="ex-list"></div>
+        <button class="btn btn--go btn--full" id="ex-add">${ICON.plus}<span>Aggiungi una spesa</span></button>
+        <p class="fld__h">Extra sono le spese senza un preventivo proprio: cibo, carburante,
+        pedaggi, imprevisti. Il costo delle attività già in programma si registra dalla tappa.</p>`;
+
+      function paint() {
+        const list = $("#ex-list", body);
+        const voci = Store.extrasOn(d.date);
+        if (!voci.length) {
+          list.innerHTML = `<p class="empty">Nessun extra per questa giornata.</p>`;
+          return;
+        }
+        const tot = voci.reduce((a, e) => a + Store.toEur(e), 0);
+        list.innerHTML = `<div class="exsum"><span>Totale del giorno</span><b>${eur2(tot)}</b></div>`;
+        voci.forEach(e => {
+          const lo = e.lineId ? Store.lineOf(e.lineId) : null;
+          const row = el("div", "exrow");
+          row.innerHTML = `
+            <button class="exrow__b">
+              <b>${esc(e.note || (lo ? lo.line.label : "Spesa"))}</b>
+              <span>${esc(lo ? lo.line.label : "fuori piano")}</span>
+            </button>
+            <span class="exrow__v">${e.cur === "NOK" ? nok(e.amount) : eur2(e.amount)}
+              ${e.cur === "NOK" ? `<em>${eur2(Store.toEur(e))}</em>` : ""}</span>
+            <button class="exrow__x" aria-label="Elimina">${ICON.trash}</button>`;
+          $(".exrow__b", row).onclick = () => { closeSheet(); expenseSheet(e); };
+          $(".exrow__x", row).onclick = () => {
+            Store.removeExpense(e.id); buzz(); paint(); rerender(); toast("Spesa eliminata");
+          };
+          list.appendChild(row);
+        });
+      }
+      paint();
+
+      $("#ex-add", body).onclick = () => {
+        closeSheet();
+        expenseSheet(null, { date: d.date, extra: true });
+      };
+    }, { focus: false });
+  }
+
   /* ---------- il costo di questa tappa ----------------------
      Prima l'unico modo era il pulsante "Spesa" del giorno, che
      accumulava un totale indistinto. Ora ogni tappa collegata a
      una voce di budget mostra quanto è preventivato, quanto hai
      speso davvero, e permette di registrarlo da lì.
      -------------------------------------------------------- */
-  function costBlock(f) {
+  function costBlock(f, key) {
     if (!f.bill) return null;
     const lo = Store.lineOf(f.bill);
     if (!lo) return null;
-    const spese = Store.expensesFor(f.bill);
-    const speso = Store.spentOn(f.bill);
+    const pool0 = !!lo.line.pool;
+    // Una voce cumulativa è condivisa da tutto il viaggio: il suo totale
+    // non è il costo di questa tappa. Quindi qui conto solo le spese
+    // registrate DA questa tappa.
+    const spese = pool0
+      ? Store.expensesFor(f.bill).filter(e => e.stopId === key)
+      : Store.expensesFor(f.bill);
+    const speso = spese.reduce((a, e) => a + Store.toEur(e), 0);
     const box = el("div", "cost" + (speso > 0 ? " cost--paid" : ""));
 
     // una voce cumulativa (cibo, carburante, varie) copre tutto il viaggio:
     // mostrarne il preventivo accanto a una singola tappa sarebbe fuorviante
-    const pool = !!lo.line.pool;
+    const pool = pool0;
     if (pool && speso === 0) {
       box.classList.add("cost--pool");
       box.innerHTML = `<div class="cost__row">
@@ -557,7 +619,7 @@ const Views = (() => {
     add.innerHTML = `${ICON.coin}<span>${speso > 0 ? "Aggiungi" : "Registra la spesa"}</span>`;
     add.onclick = e => {
       e.stopPropagation();
-      expenseSheet(null, { lineId: f.bill, date: f.date || null });
+      expenseSheet(null, { lineId: f.bill, date: f.date || null, stopId: key });
     };
     acts.appendChild(add);
 
@@ -580,8 +642,10 @@ const Views = (() => {
   }
 
   /* ---------- tappa ---------------------------------------- */
+  function stopKey(d, f) { return d.id + "/" + (f.id || f.title); }
+
   function stopRow(f, d, n, state) {
-    const key = d.id + "/" + (f.id || f.title);
+    const key = stopKey(d, f);
     const opened = openStops.has(key);
     const cls = f.status === "booked" ? "booked"
               : f.status === "todo" ? "todo"
@@ -628,7 +692,7 @@ const Views = (() => {
     }
     det.innerHTML = html;
 
-    const cost = costBlock(Object.assign({ date: d.date }, f));
+    const cost = costBlock(Object.assign({ date: d.date }, f), key);
     if (cost) det.appendChild(cost);
 
     if (f.code || f.hasPin) {
@@ -802,7 +866,7 @@ const Views = (() => {
     // il pulsante resta senza cifra
     const extra = Store.extraTotal(d.date);
     acts.appendChild(mk(ICON.coin, extra ? "Extra " + eur(extra) : "Altra spesa",
-      () => expenseSheet(null, { date: d.date })));
+      () => extra ? extraSheet(d) : expenseSheet(null, { date: d.date, extra: true })));
     acts.appendChild(mk(ICON.pencil, "Nota", () => textSheet(
       "Nota · " + d.dateLabel, d.userNote,
       v => { if (v.trim()) S.notes[d.id] = v.trim(); else delete S.notes[d.id]; Store.save(); },
@@ -1272,6 +1336,33 @@ const Views = (() => {
         cats.appendChild(line);
       });
       wrap.appendChild(cats);
+    }
+
+    /* --- extra: quello che hai speso fuori dalle tappe segnate --- */
+    const gruppi = Store.extrasByDay();
+    if (gruppi.length) {
+      const h = el("div", "sect-head");
+      h.innerHTML = `<span class="eyebrow">Extra</span><i class="rule"></i>
+        <span class="eyebrow">${eur(Store.extrasTotalAll())}</span>`;
+      wrap.appendChild(h);
+
+      const box = el("div", "card");
+      box.innerHTML = `<p class="bline__note" style="margin:0 0 10px">
+        Spese che non appartengono a nessuna tappa in programma di quella giornata:
+        caffè, panini, parcheggi, imprevisti.</p>`;
+      gruppi.forEach(g => {
+        const row = el("button", "exday");
+        row.innerHTML = `
+          <span class="exday__d">${esc(g.day.id)}</span>
+          <span class="exday__b">
+            <b>${esc(g.day.dow)} ${esc(g.day.dateLabel)}</b>
+            <span>${g.voci.map(e => esc(e.note || "spesa")).join(" · ")}</span>
+          </span>
+          <span class="exday__v">${eur2(g.tot)}</span>`;
+        row.onclick = () => { buzz(); extraSheet(g.day); };
+        box.appendChild(row);
+      });
+      wrap.appendChild(box);
     }
 
     if (!dates.length) {
