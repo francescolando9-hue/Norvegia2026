@@ -1,0 +1,4 @@
+# Questo sito contiene codici di prenotazione personali.
+# Nessun motore di ricerca deve indicizzarlo.
+User-agent: *
+Disallow: /

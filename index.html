@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=5">
+<title>Norvegia Artica · 12–22 agosto 2026</title>
+<meta name="description" content="Itinerario, prenotazioni, spese e note pratiche del viaggio in Norvegia artica, 12–22 agosto 2026.">
+<meta name="theme-color" content="#05131A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Norvegia">
+<meta name="format-detection" content="telephone=no">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.open-meteo.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__in">
+    <span class="brand">Norvegia <span>Artica</span></span>
+    <button class="iconbtn" id="searchbtn" aria-label="Cerca nel viaggio"></button>
+    <button class="iconbtn" id="themebtn" aria-label="Cambia tema"></button>
+  </div>
+</header>
+
+<div class="strip"><div class="strip__in" id="strip"></div></div>
+
+<main class="wrap" id="main"></main>
+
+<nav class="nav" aria-label="Sezioni"><div class="nav__in" id="nav"></div></nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- opzionale e mai nel repo: se manca, i PIN si inseriscono dall'app -->
+<script src="secrets.js" onerror="void 0"></script>
+<script src="data.js"></script>
+<script src="store.js"></script>
+<script src="ui.js"></script>
+<script src="weather.js"></script>
+<script src="views.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

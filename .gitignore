@@ -1,0 +1,24 @@
+# PIN dei voucher: non deve MAI finire nel repo
+secrets.js
+
+# build generata: si rifà con `python3 build.py`
+ViaggioNorvegia2026.html
+
+# backup esportati dall'app
+NorvegiaArtica-backup-*.json
+NorvegiaArtica2026.ics
+
+# sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# editor
+.vscode/
+.idea/
+
+# python
+__pycache__/
+*.pyc
