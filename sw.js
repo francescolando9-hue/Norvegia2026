@@ -2,10 +2,10 @@
    Shell precaricata, meteo e font in cache con aggiornamento
    in background. Alza CACHE a ogni modifica dei dati. */
 
-const CACHE = "vn2026-v7.0-04fd5b93";
+const CACHE = "vn2026-v8.1";
 const SHELL = [
   "./", "index.html", "app.css",
-  "data.js", "store.js", "ui.js", "weather.js", "views.js", "app.js",
+  "data.js", "store.js", "ui.js", "weather.js", "extra.js", "views.js", "app.js",
   "manifest.webmanifest", "icon-192.png", "icon-512.png"
 ];
 

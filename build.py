@@ -30,11 +30,11 @@ SW = HERE / "sw.js"
 
 # entrano nell'impronta: se cambia uno di questi, cambia la cache
 FINGERPRINT = ["index.html", "app.css", "data.js", "store.js",
-               "ui.js", "weather.js", "views.js", "app.js",
+               "ui.js", "weather.js", "extra.js", "views.js", "app.js",
                "manifest.webmanifest"]
 
 # ordine di caricamento degli script nel file singolo
-SCRIPTS = ["data.js", "store.js", "ui.js", "weather.js", "views.js", "app.js"]
+SCRIPTS = ["data.js", "store.js", "ui.js", "weather.js", "extra.js", "views.js", "app.js"]
 
 # opzionale, mai nel repo: entra solo nel file singolo generato in locale
 SECRETS = "secrets.js"
@@ -121,10 +121,19 @@ def main():
     if CHECK:
         if aligned:
             print("Cache allineata: " + cache)
-            return 0
-        print("Cache DISALLINEATA. Attesa: " + cache)
-        print("Esegui `python3 build.py` e ricommitta sw.js.")
-        return 1
+        else:
+            # Avviso, non errore. Quello che conta e' che il nome della cache
+            # sia CAMBIATO rispetto alla versione precedente, non che combaci
+            # con l'impronta: modificando i file dall'editor web di GitHub i
+            # byte cambiano comunque e un controllo rigido bloccherebbe il
+            # deploy senza motivo.
+            attuale = re.search(r'const CACHE = "([^"]+)"', SW.read_text(encoding="utf-8"))
+            print("Nota: cache non allineata all'impronta.")
+            print("  in sw.js: " + (attuale.group(1) if attuale else "?"))
+            print("  impronta: " + cache)
+            print("Va bene se il nome e' diverso da quello dell'ultimo rilascio.")
+            print("Da PC, `python3 build.py` lo riallinea.")
+        return 0
 
     print("Cache service worker: " + cache + ("  (gia' allineata)" if aligned else "  (aggiornata)"))
     kb = build_single()

@@ -15,7 +15,7 @@ const TRIP = {
     from: "2026-08-12",
     to: "2026-08-22",
     people: 2,
-    version: "v7.0",
+    version: "v8.1",
     source: "ItinerarioVacanzaNorvegia20260811v6.xlsx",
     fxDefault: 10.95,
     fxNote: "Cambio EUR/NOK indicativo all'11 agosto 2026 (~10,95). Cambialo e tutti gli importi in corone si riconvertono."
@@ -637,3 +637,90 @@ const TRIP = {
     { label: "Vigili del fuoco", value: "110" }
   ]
 };
+
+/* ============================================================
+   Cassetta dei documenti — le categorie che servono a questo
+   viaggio. I file restano sul telefono (IndexedDB), i numeri
+   nel deposito locale. Niente di tutto questo va nel repo.
+   ============================================================ */
+TRIP.docs = [
+  { id: "identita", label: "Identità", icon: "id",
+    hint: "Ti servono al gate e al banco Sixt.",
+    items: ["Carta d'identità o passaporto — Francesco", "Carta d'identità o passaporto — Mari"],
+    fields: [
+      { id: "ci-fra", label: "Documento Francesco, numero" },
+      { id: "ci-mari", label: "Documento Mari, numero" }
+    ]},
+
+  { id: "guida", label: "Guida e auto", icon: "car",
+    hint: "Il momento critico è il ritiro all'aeroporto di Tromsø, il 13.",
+    items: ["Patente", "Conferma noleggio Sixt", "Foto della carta di credito usata per la cauzione"],
+    fields: [
+      { id: "sixt-ref", label: "Riferimento prenotazione Sixt" },
+      { id: "patente", label: "Patente, numero" }
+    ]},
+
+  { id: "salute", label: "Salute e assicurazione", icon: "cross",
+    hint: "Acqua a 10–16 °C, due immersioni e cinque uscite in mare: tienila a portata.",
+    items: ["Tessera sanitaria / EHIC", "Polizza di viaggio", "Ricette o farmaci ricorrenti"],
+    fields: [
+      { id: "polizza", label: "Polizza, numero" },
+      { id: "polizza-tel", label: "Centrale operativa, telefono" }
+    ]},
+
+  { id: "immersioni", label: "Immersioni", icon: "wave",
+    hint: "Il 19 hai un corso muta stagna: brevetto e logbook non sono opzionali.",
+    items: ["Brevetto Open Water", "Logbook", "Certificato medico, se richiesto"],
+    fields: [{ id: "owd", label: "Brevetto, numero" }]},
+
+  { id: "voucher", label: "Voucher e biglietti", icon: "ticket",
+    hint: "Scaricali prima di partire: su Senja e alle Lofoten il segnale non è garantito.",
+    items: ["Carte d'imbarco Norwegian", "Voucher GetYourGuide", "Conferme Booking", "Traghetto Moskenes–Bodø"],
+    fields: []},
+
+  { id: "altro", label: "Altro", icon: "clip",
+    hint: "Quello che non sta nelle altre caselle.",
+    items: [], fields: [] }
+];
+
+/* ============================================================
+   Controlli automatici sul piano. Ogni voce viene ricalcolata
+   dall'app sui dati correnti: se prenoti una notte o sposti
+   un'attività, l'avviso sparisce da solo.
+   ============================================================ */
+TRIP.checks = [
+  { id: "foche-stagione", day: "G9", level: "alto",
+    title: "Snorkeling foche fuori dalla stagione pubblicata",
+    body: "Il biglietto non è stato emesso e la stagione dichiarata dall'operatore è 10/6–15/8. Il 20/8 è fuori finestra.",
+    action: "Chiama +47 905 81 475", tel: "+47 905 81 475" },
+
+  { id: "checkout-reinebringen", day: "G7", level: "medio",
+    title: "Reinebringen contro il check-out delle 11:00",
+    body: "Salita e discesa sono 1h30–2h. Partendo alle 6:30 rientri verso le 9:30: restano 90 minuti per bagagli e colazione. Se parti più tardi, il margine si mangia.",
+    action: null },
+
+  { id: "trollfjord-corse", day: "G5", level: "medio",
+    title: "Trollfjord: il 16 è l'ultimo giorno con tre corse",
+    body: "Dal 17 agosto le partenze scendono a due al giorno. Se la serale del 16 non opera, l'alternativa cade in una giornata già piena.",
+    action: null },
+
+  { id: "sixt-carta", day: "G2", level: "alto",
+    title: "Sixt: carta di credito fisica con PIN",
+    body: "Al ritiro serve una carta di credito internazionale intestata al conducente, esibita fisicamente. Prepagate e debito non sono accettate e la preautorizzazione può arrivare a 2.500 €.",
+    action: null },
+
+  { id: "husoy-spesa", day: "G2", level: "medio",
+    title: "A Husøy non trovi niente da mangiare",
+    body: "Cena del 13 e colazione del 14 vanno comprate a Finnsnes o Silsand mentre sei in strada. Dopo il ponte di Gisund non c'è più nulla di affidabile.",
+    action: null },
+
+  { id: "traghetto-posto", day: "G10", level: "alto",
+    title: "Moskenes–Bodø: il posto auto va prenotato",
+    body: "Solo metà della capienza è prenotabile online e in alta stagione si esaurisce. Senza posto rischi di restare a terra con il volo la mattina dopo.",
+    action: null },
+
+  { id: "corso-durata", day: "G8", level: "medio",
+    title: "Durata del corso muta stagna da confermare",
+    body: "Un corso muta stagna occupa di norma mezza o intera giornata. Se sfora, Nusfjord e l'eventuale trasloco a Hattvika saltano.",
+    action: null }
+];

@@ -412,18 +412,19 @@ const Views = (() => {
     return n;
   }
 
-  function dayCard(d) {
+  function dayCard(d, opt = {}) {
+    const full = !!opt.full;
     const t = todayISO();
     const isToday = d.date === t, isPast = d.date < t;
     const st = dayStatus(d);
     const card = el("article", "day" + (isToday ? " day--on" : "") + (isPast ? " day--past" : ""));
     card.id = "d-" + d.id;
 
-    const head = el("div", "day__head");
+    const head = el("div", "day__head" + (full ? " day__head--full" : ""));
     head.innerHTML = `
       <div class="day__id">
-        <span class="day__n">${esc(d.id)}</span>
-        <span class="day__date">${esc(d.dow)} ${esc(d.dateLabel)}</span>
+        ${full ? "" : `<span class="day__n">${esc(d.id)}</span>
+        <span class="day__date">${esc(d.dow)} ${esc(d.dateLabel)}</span>`}
       </div>
       <div class="day__arc">${esc(d.arc)}${d.km ? `<span class="sep">·</span>${esc(d.km)}` : ""}${d.drive ? `<span class="sep">·</span>${esc(d.drive)}` : ""}</div>
       <p class="day__line">${esc(d.headline)}</p>`;
@@ -432,6 +433,24 @@ const Views = (() => {
     const bg = el("span", `day__badge day__badge--${st}`, st === "ok" ? "chiuso" : st === "verify" ? "verifica" : "aperto");
     badges.appendChild(bg);
     $(".day__id", head).appendChild(badges);
+
+    // nella lista l'intestazione è la maniglia per aprire la giornata a pieno schermo
+    if (!full) {
+      head.classList.add("day__head--tap");
+      head.setAttribute("role", "button");
+      head.setAttribute("tabindex", "0");
+      head.setAttribute("aria-label", "Apri " + d.id);
+      const open = e => {
+        if (e.target.closest(".wxchip")) return;   // il meteo ha il suo sheet
+        buzz(); Extra.openDay(d.id);
+      };
+      head.addEventListener("click", open);
+      head.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(e); }
+      });
+      const go = el("span", "day__open", ICON.caret);
+      head.appendChild(go);
+    }
     card.appendChild(head);
 
     const body = el("div", "day__body");
@@ -519,6 +538,21 @@ const Views = (() => {
   function giorni() {
     const v = el("div", "view");
     v.appendChild(nowCard());
+
+    const al = Extra.avvisiCard(true);
+    if (al) v.appendChild(al);
+
+    const seg = el("div", "seg seg--top");
+    seg.innerHTML = `
+      <button data-v="lista" class="${S.tab.giorni === "lista" ? "on" : ""}">Lista</button>
+      <button data-v="mappa" class="${S.tab.giorni === "mappa" ? "on" : ""}">Mappa</button>`;
+    $$("button", seg).forEach(b => b.onclick = () => {
+      S.tab.giorni = b.dataset.v; Store.save(); buzz(); rerender();
+    });
+    v.appendChild(seg);
+
+    if (S.tab.giorni === "mappa") { v.appendChild(Extra.mappa()); return v; }
+
     const h = el("div", "sect-head");
     h.innerHTML = `<span class="eyebrow">11 giorni</span><i class="rule"></i>
       <span class="eyebrow">${esc(Weather.loading ? "meteo in aggiornamento" : Weather.ageLabel())}</span>`;
@@ -983,10 +1017,14 @@ const Views = (() => {
     const seg = el("div", "seg seg--top");
     seg.innerHTML = `
       <button data-v="info" class="${S.tab.pratico === "info" ? "on" : ""}">Info</button>
-      <button data-v="valigia" class="${S.tab.pratico === "valigia" ? "on" : ""}">Valigia</button>`;
+      <button data-v="valigia" class="${S.tab.pratico === "valigia" ? "on" : ""}">Valigia</button>
+      <button data-v="documenti" class="${S.tab.pratico === "documenti" ? "on" : ""}">Documenti</button>`;
     $$("button", seg).forEach(b => b.onclick = () => { S.tab.pratico = b.dataset.v; Store.save(); rerender(); });
     v.appendChild(seg);
-    v.appendChild(S.tab.pratico === "info" ? praticoInfo() : praticoValigia());
+    v.appendChild(
+      S.tab.pratico === "documenti" ? Extra.documenti()
+      : S.tab.pratico === "valigia" ? praticoValigia()
+      : praticoInfo());
     return v;
   }
 
@@ -1033,6 +1071,14 @@ const Views = (() => {
       <div class="btnrow">
         <button class="btn btn--go" data-a="ics">${ICON.cal}<span>Aggiungi al calendario</span></button>
       </div>
+      <div class="btnrow" style="margin-top:8px">
+        <button class="btn btn--ghost" data-a="share">${Extra.ICON2.share}<span>Condividi</span></button>
+        <button class="btn btn--ghost" data-a="print">${Extra.ICON2.print}<span>Stampa o PDF</span></button>
+      </div>
+      <p class="bline__note" style="margin:9px 0 11px">
+        <b>Condividi</b> passa l'itinerario a Mari con il foglio di condivisione del telefono.
+        <b>Stampa</b> apre la versione su carta: una copia stampata è l'unica che sopravvive
+        a un telefono scarico o perso.</p>
       <p class="bline__note" style="margin:10px 0 11px">
         Scarica un file .ics con tutte le tappe e i pernotti: aprendolo, il telefono li importa nel
         calendario e le attività prenotate ti avvisano un'ora prima. Da rifare se cambi qualcosa.</p>
@@ -1041,6 +1087,11 @@ const Views = (() => {
         <label class="btn btn--ghost">${ICON.up}<span>Importa</span><input type="file" accept="application/json" hidden data-a="imp"></label>
         <button class="btn btn--ghost btn--danger" data-a="res">${ICON.trash}<span>Azzera</span></button>
       </div>`;
+    $('[data-a="share"]', dc).onclick = () => Extra.shareTrip();
+    $('[data-a="print"]', dc).onclick = () => {
+      document.body.classList.add("printing");
+      setTimeout(() => { window.print(); setTimeout(() => document.body.classList.remove("printing"), 400); }, 60);
+    };
     $('[data-a="ics"]', dc).onclick = () => {
       download("NorvegiaArtica2026.ics", icsText(), "text/calendar;charset=utf-8");
       toast("Calendario scaricato");
@@ -1216,5 +1267,6 @@ const Views = (() => {
     setTimeout(() => q.focus(), 120);
   }
 
-  return { bind, giorni, prenota, budget, pratico, search, dayStatus, currentIndex, jump };
+  return { bind, giorni, prenota, budget, pratico, search, dayStatus, currentIndex, jump,
+           dayCard, filesSheet, nowCard };
 })();

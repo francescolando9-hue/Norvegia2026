@@ -12,32 +12,45 @@ Vanilla JS, nessuna dipendenza, nessun passaggio di build per il deploy.
 
 | | |
 |---|---|
-| **Giorni** | Card di apertura con il prossimo appuntamento e il letto di stanotte, poi gli 11 giorni. Ogni giorno ha una barra temporale con gli orari fissi e una riga rossa sull'ora corrente, la fascia delle cose senza orario, il pernotto e le azioni rapide (registra spesa, aggiungi tappa, scrivi una nota). Il chip meteo apre previsioni e stato del mare per quella tappa. |
-| **Prenota** | Le 14 cose da chiudere in ordine di scadenza, con pulsante *Chiama* dove serve. Sotto, tutte le prenotazioni con codici e PIN copiabili con un tap e la possibilità di allegare i voucher. |
-| **Budget** | Due schede. *Piano*: preventivo, proiezione, notti aperte, cambio modificabile, dettaglio per voce. *Spese*: registro reale in NOK o EUR con conversione live, avanzamento per categoria, cronologia per giorno. |
-| **Pratico** | *Info*: telefoni cliccabili, guida, pedaggi, trekking, link agli operatori, backup ed export calendario. *Valigia*: 35 voci tarate su questo viaggio, spuntabili, con voci tue. |
+| **Giorni** | Card di apertura con prossimo appuntamento e letto di stanotte, poi gli avvisi, poi due modi di guardare il viaggio: **Lista** (gli 11 giorni, con barra temporale e riga rossa sull'ora corrente) e **Mappa** (rotta schematica disegnata dalle coordinate, funziona in modalità aereo). Tocca l'intestazione di un giorno e si apre a schermo pieno: da lì scorri alla giornata successiva con il pollice. |
+| **Prenota** | Le cose da chiudere in ordine di scadenza, con pulsante *Chiama* dove serve. Sotto, tutte le prenotazioni con codici e PIN copiabili, e gli allegati dei voucher. |
+| **Budget** | *Piano*: preventivo, proiezione, notti aperte, cambio modificabile. *Spese*: registro reale in NOK o EUR con conversione live, avanzamento per categoria, cronologia per giorno. |
+| **Pratico** | *Info*: telefoni, guida, pedaggi, trekking, link, backup, calendario, condivisione, stampa. *Valigia*: 35 voci tarate sul viaggio. *Documenti*: la cassetta — identità, guida e auto, salute, immersioni, voucher, con file e numeri. |
 
-In alto: ricerca globale (cerca anche dentro i codici prenotazione) e tema chiaro / scuro / automatico.
-
----
+In alto: ricerca globale (cerca anche dentro i codici) e tema chiaro / scuro / automatico.
 
 ## Le cose che valgono davvero in viaggio
 
-**Aggiungi al calendario.** Un file `.ics` con 55 eventi e promemoria automatici un'ora
-prima di ogni attività prenotata. È l'unico modo per avere notifiche vere: un'app web da
-sola non può svegliarti. Da rigenerare se cambi qualcosa.
+**Aggiungi al calendario.** Un `.ics` con 55 eventi e promemoria automatici un'ora prima
+di ogni attività prenotata. È l'unico modo per avere notifiche vere: un'app web da sola
+non può svegliarti.
 
-**Segnare una notte come prenotata.** Nome, stato e prezzo pagato in un colpo solo. Il
-prezzo diventa una spesa collegata alla voce di budget di quella notte, e il contatore
-delle notti aperte, il badge del giorno e la card di apertura si aggiornano insieme.
+**Avvisi ricalcolati.** Non è una lista scritta a mano: notti senza prenotazione e
+attività ancora aperte vengono ricavate dai dati correnti. Prenoti una notte e l'avviso
+sparisce da solo. Quelli di merito — la carta Sixt, la stagione delle foche, il check-out
+contro il Reinebringen — li archivi a mano quando li hai sistemati.
 
-**Registro spese in corone.** Paghi in NOK, scrivi in NOK, l'app converte. Le cinque
-cose già pagate sono precaricate.
+**Documenti.** Identità, patente e noleggio, tessera sanitaria e polizza, brevetto e
+logbook, voucher. File in IndexedDB, numeri nel deposito locale: si aprono senza rete e
+non escono dal telefono. Non sono cifrati — la protezione è il blocco schermo.
 
-**Offline.** Dopo la prima apertura l'app parte senza rete. Il meteo mostra l'ultimo
-aggiornamento riuscito con l'ora accanto, così sai quanto fidarti.
+**Mappa offline.** Nessuna tessera da scaricare: le tappe sono proiettate dalle
+coordinate, con la compressione dei meridiani corretta per la latitudine (a 68°N un grado
+di longitudine vale poco più di un terzo di uno di latitudine). Oslo resta fuori dal
+riquadro di proposito: a 59,9°N schiacciava tutto l'artico in un grumo illeggibile.
 
----
+**Registro spese in corone.** Paghi in NOK, scrivi in NOK, l'app converte. Le cose già
+pagate sono precaricate.
+
+**Stampa.** Un foglio di stile dedicato produce 14 pagine A4 pulite. Una copia stampata è
+l'unica che sopravvive a un telefono scarico o perso.
+
+**Condividi.** Passa l'itinerario, o una singola giornata, con il foglio di condivisione
+del telefono.
+
+**Offline.** Dopo la prima apertura l'app parte senza rete: giorni, mappa, documenti,
+spese, tutto. Il meteo mostra l'ora dell'ultimo aggiornamento riuscito, così sai quanto
+fidarti. Trascina giù dall'alto per riprovare.
 
 ## Metterla su GitHub
 
@@ -126,6 +139,7 @@ sistema e il meteo resta all'ultimo dato in cache.
 | `ui.js` | Bottom sheet, toast, campi, icone, formattazione, vibrazione. |
 | `weather.js` | Open-Meteo, una richiesta per tutte le tappe, risultato in cache. |
 | `views.js` | Le quattro viste, gli sheet di modifica, ricerca, generatore `.ics`. |
+| `extra.js` | Mappa, documenti, avvisi calcolati, giornata a schermo pieno, condivisione. |
 | `app.js` | Guscio, navigazione, tema, service worker, stato connessione. |
 
 **I tuoi dati non vengono sovrascritti dagli aggiornamenti.** Spunte, spese, note e nomi

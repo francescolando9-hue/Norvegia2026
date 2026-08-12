@@ -73,8 +73,14 @@ const App = (() => {
   function go(k) {
     if (S.view === k) { render(); return; }
     S.view = k; Store.save();
-    render();
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    UI.buzz();
+    const paint = () => { render(); window.scrollTo({ top: 0 }); };
+    if (document.startViewTransition &&
+        !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      document.startViewTransition(paint);
+    } else {
+      paint();
+    }
   }
 
   function render() {
@@ -97,6 +103,7 @@ const App = (() => {
 
     Store.seedOnce();
     Views.bind(render);
+    Extra.bind(render);
     Weather.onChange(() => { if (S.view === "giorni") render(); });
 
     const sb = $("#searchbtn");
@@ -134,8 +141,58 @@ const App = (() => {
       });
     }
 
+    // se apri un link con #G4 ci vai diretto
+    if (/^#G\d+$/.test(location.hash)) {
+      const id = location.hash.slice(1);
+      if (TRIP.days.some(d => d.id === id)) setTimeout(() => Extra.openDay(id), 260);
+    }
+
+    pullToRefresh();
     watchConnection();
     registerSW();
+  }
+
+  /* ---------- trascina giù per aggiornare il meteo --------
+     Solo quando sei già in cima e solo verso il basso, così non
+     litiga con lo scorrimento normale.
+     -------------------------------------------------------- */
+  function pullToRefresh() {
+    let y0 = null, armed = false;
+    const ind = el("div", "ptr");
+    ind.innerHTML = `<span></span>`;
+    document.body.appendChild(ind);
+
+    window.addEventListener("touchstart", e => {
+      if (e.touches.length !== 1 || window.scrollY > 2 || document.body.classList.contains("day-open")) {
+        y0 = null; return;
+      }
+      y0 = e.touches[0].clientY; armed = false;
+    }, { passive: true });
+
+    window.addEventListener("touchmove", e => {
+      if (y0 == null) return;
+      const dy = e.touches[0].clientY - y0;
+      if (dy <= 0) { ind.style.transform = ""; return; }
+      const pull = Math.min(dy * 0.4, 62);
+      ind.style.transform = `translateY(${pull}px)`;
+      ind.classList.toggle("ptr--armed", pull > 46);
+      armed = pull > 46;
+    }, { passive: true });
+
+    window.addEventListener("touchend", () => {
+      if (y0 == null) return;
+      ind.style.transform = "";
+      ind.classList.remove("ptr--armed");
+      if (armed) {
+        UI.buzz(12);
+        ind.classList.add("ptr--go");
+        Weather.refresh(true).finally(() => {
+          setTimeout(() => ind.classList.remove("ptr--go"), 300);
+          toast(navigator.onLine ? "Meteo aggiornato" : "Nessuna rete: resta l'ultimo dato");
+        });
+      }
+      y0 = null; armed = false;
+    }, { passive: true });
   }
 
   /* ---------- stato della connessione --------------------- */
@@ -174,7 +231,7 @@ const App = (() => {
     requestAnimationFrame(() => bar.classList.add("on"));
   }
 
-  return { go, render, boot };
+  return { go, render, boot, VIEWS };
 })();
 
 document.addEventListener("DOMContentLoaded", App.boot);

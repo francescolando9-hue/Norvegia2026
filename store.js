@@ -16,7 +16,9 @@ const Store = (() => {
   const DEFAULT = {
     v: 2,
     view: "giorni",
-    tab: { budget: "piano", pratico: "info" },
+    tab: { budget: "piano", pratico: "info", giorni: "lista" },
+    docNum: {},          // numeri di documento, solo su questo dispositivo
+    checkOff: {},        // avvisi archiviati a mano
     theme: "auto",
     fx: 10.95,
     optional: true,
@@ -59,7 +61,9 @@ const Store = (() => {
     try {
       const s = JSON.parse(raw);
       return Object.assign(structuredClone(DEFAULT), s, {
-        tab: Object.assign({}, DEFAULT.tab, s.tab || {})
+        tab: Object.assign({}, DEFAULT.tab, s.tab || {}),
+        docNum: s.docNum || {},
+        checkOff: s.checkOff || {}
       });
     } catch {
       return structuredClone(DEFAULT);
@@ -73,6 +77,10 @@ const Store = (() => {
     try { localStorage.setItem(KEY, JSON.stringify(S)); }
     catch (e) { memoryOnly = true; }
   }
+
+  const slug = t => String(t).toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 28);
 
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -97,6 +105,59 @@ const Store = (() => {
     S.seeded = true;
     save();
   }
+
+
+  /* ---------- numeri di documento --------------------------
+     Restano su questo dispositivo. Entrano nel backup JSON:
+     è comodo per cambiare telefono, ma vuol dire che quel file
+     va trattato come un documento, non come un promemoria.
+     -------------------------------------------------------- */
+  function docNum(id) { return S.docNum[id] || ""; }
+  function setDocNum(id, v) {
+    const t = String(v || "").trim();
+    if (t) S.docNum[id] = t; else delete S.docNum[id];
+    save();
+  }
+
+  /* ---------- avvisi automatici ---------------------------
+     Un avviso vive finché la condizione che lo genera è vera.
+     Prenota la notte o segna il todo e sparisce da solo;
+     "checkOff" serve solo per zittire quelli senza condizione.
+     -------------------------------------------------------- */
+  function checks() {
+    const out = [];
+
+    // avvisi dichiarati nei dati, ancora pertinenti
+    TRIP.checks.forEach(c => {
+      if (S.checkOff[c.id]) return;
+      out.push(Object.assign({ kind: "fisso" }, c));
+    });
+
+    // notti ancora aperte: calcolato, non dichiarato
+    const aperte = days().filter(d => d.stay && d.stay.status === "todo");
+    aperte.forEach(d => out.push({
+      id: "notte-" + d.id, kind: "calcolato", day: d.id,
+      level: aperte.length > 2 ? "alto" : "medio",
+      title: "Notte del " + d.dateLabel + " senza prenotazione",
+      body: d.stay.name + " · " + d.stay.place + ". In alta stagione le sistemazioni alle Lofoten si esauriscono.",
+      action: null
+    }));
+
+    // attività da prenotare con una data ravvicinata
+    days().forEach(d => d.fixed.filter(f => f.status === "todo").forEach(f => out.push({
+      id: "att-" + d.id + "-" + slug(f.title), kind: "calcolato", day: d.id,
+      level: "medio",
+      title: f.title + " non è prenotata",
+      body: d.dow + " " + d.dateLabel + (f.t ? ", ore " + f.t : "") + ".",
+      action: null
+    })));
+
+    const rank = { alto: 0, medio: 1, basso: 2 };
+    const ordine = TRIP.days.map(d => d.id);
+    return out.sort((a, b) =>
+      (rank[a.level] - rank[b.level]) || (ordine.indexOf(a.day) - ordine.indexOf(b.day)));
+  }
+  function muteCheck(id) { S.checkOff[id] = true; save(); }
 
   /* ---------- PIN dei voucher -----------------------------
      Non stanno nei dati pubblici. L'app li cerca in tre posti,
@@ -300,7 +361,7 @@ const Store = (() => {
 
   return {
     S, save, uid, seedOnce,
-    getEdit, setEdit, pinFor, setPin, day, days,
+    getEdit, setEdit, pinFor, setPin, docNum, setDocNum, checks, muteCheck, day, days,
     addExpense, updateExpense, removeExpense, toEur,
     expensesFor, spentOn, looseIn, lineOf, totals, sectionTotals,
     Files, exportJson, importJson, reset,
