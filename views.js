@@ -798,9 +798,10 @@ const Views = (() => {
     /* --- azioni --- */
     const acts = el("div", "dayacts");
     const mk = (icon, label, fn) => { const b = el("button", null, `${icon}<span>${label}</span>`); b.onclick = fn; return b; };
-    const spese = Store.S.expenses.filter(e => e.date === d.date);
-    const tot = spese.reduce((a, e) => a + Store.toEur(e), 0);
-    acts.appendChild(mk(ICON.coin, tot ? "Spese " + eur(tot) : "Altra spesa",
+    // il contatore riguarda solo gli extra: se non ne hai aggiunti,
+    // il pulsante resta senza cifra
+    const extra = Store.extraTotal(d.date);
+    acts.appendChild(mk(ICON.coin, extra ? "Extra " + eur(extra) : "Altra spesa",
       () => expenseSheet(null, { date: d.date })));
     acts.appendChild(mk(ICON.pencil, "Nota", () => textSheet(
       "Nota · " + d.dateLabel, d.userNote,

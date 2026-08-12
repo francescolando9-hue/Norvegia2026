@@ -225,6 +225,20 @@ const Store = (() => {
   const spentOn = lineId => expensesFor(lineId).reduce((s, e) => s + toEur(e), 0);
   const looseIn = catId => S.expenses.filter(e => !e.lineId && e.cat === catId);
 
+  /* Spese "extra" di una giornata.
+     Extra = tutto ciò che non è il prezzo di un'attività già
+     preventivata. In pratica: le spese senza voce, e quelle su
+     voci cumulative (cibo, carburante, pedaggi, varie), che per
+     definizione non sono il costo di una singola tappa.
+     Il safari da 260 € non è un extra: è il piano. Il caffè sì. */
+  function isExtra(e) {
+    if (!e.lineId) return true;
+    const lo = lineOf(e.lineId);
+    return !lo || !!lo.line.pool;
+  }
+  const extrasOn = date => S.expenses.filter(e => e.date === date && isExtra(e));
+  const extraTotal = date => extrasOn(date).reduce((a, e) => a + toEur(e), 0);
+
   function lineOf(lineId) {
     for (const sec of TRIP.budget) {
       const l = sec.lines.find(x => x.id === lineId);
@@ -363,7 +377,8 @@ const Store = (() => {
     S, save, uid, seedOnce,
     getEdit, setEdit, pinFor, setPin, docNum, setDocNum, checks, muteCheck, day, days,
     addExpense, updateExpense, removeExpense, toEur,
-    expensesFor, spentOn, looseIn, lineOf, totals, sectionTotals,
+    expensesFor, spentOn, looseIn, lineOf, isExtra, extrasOn, extraTotal,
+    totals, sectionTotals,
     Files, exportJson, importJson, reset,
     get memoryOnly() { return memoryOnly; }
   };
