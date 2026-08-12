@@ -943,7 +943,8 @@ input,textarea,select{font-size:16px}   /* sotto i 16px iOS zooma da solo */
 .day--z-bodo      {--zone:#D8A13C;--zone-wash:rgba(216,161,60,.10)}
 
 .day__head{padding:15px 16px 14px 18px;border-bottom:0}
-.day__id{display:flex;align-items:baseline;gap:9px;margin-bottom:2px}
+.day__id{display:flex;align-items:baseline;gap:9px;margin-bottom:2px;flex-wrap:nowrap}
+.day__date{white-space:nowrap}
 .day__n{
   font-family:var(--f-display);font-weight:800;font-size:15px;
   letter-spacing:-.01em;color:var(--zone);
@@ -1130,29 +1131,37 @@ input,textarea,select{font-size:16px}   /* sotto i 16px iOS zooma da solo */
 .leg--todo .leg__t{color:var(--open)}
 .leg__det{grid-column:2/-1;padding:6px 0 8px}
 
-/* ---- pernotto in cima ---- */
-.sleep{
-  display:flex;align-items:flex-start;gap:11px;
-  padding:12px 12px 12px 13px;margin:2px 0 12px;
-  border-radius:12px;
-  background:color-mix(in srgb,var(--zone) 10%,var(--card));
-  border:1px solid color-mix(in srgb,var(--zone) 22%,var(--line));
-  flex-wrap:wrap;
+/* ---- pastiglia del pernotto in testata ----
+   Serve allo sguardo veloce ("dove dormo?") senza mettere un
+   blocco senza orario in mezzo a una giornata cronologica. ---- */
+.day__facts{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-top:9px}
+.sunchip{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--f-mono);font-size:10px;color:var(--fg2);
 }
-.sleep__ic{flex:0 0 26px;height:26px;border-radius:8px;display:grid;place-items:center;
-  background:color-mix(in srgb,var(--zone) 20%,transparent)}
-.sleep__ic svg{width:15px;height:15px;stroke:var(--fg);fill:none;stroke-width:1.7;
-  stroke-linecap:round;stroke-linejoin:round}
-.sleep__b{flex:1;min-width:0;cursor:pointer}
-.sleep__k{font-family:var(--f-mono);font-size:9px;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--fg3);display:block}
-.sleep__name{display:block;font-size:14.8px;font-weight:600;letter-spacing:-.012em;margin-top:1px}
-.sleep--todo .sleep__name{color:var(--open)}
-.sleep__sub{display:block;font-family:var(--f-mono);font-size:10.5px;color:var(--fg2);margin-top:2px}
-.sleep__edit{flex:0 0 auto;padding:4px;opacity:.45}
-.sleep__edit svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
-.sleep__det{flex:0 0 100%;padding-top:10px;margin-top:9px;
-  border-top:1px solid color-mix(in srgb,var(--fg) 8%,transparent)}
+.sunchip svg{width:12px;height:12px;stroke:var(--warn);fill:none;stroke-width:1.8}
+.sunchip em{font-style:normal;color:var(--fg3)}
+
+.bedchip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 8px;border-radius:999px;
+  border:1px solid color-mix(in srgb,var(--zone) 35%,var(--line2));
+  background:color-mix(in srgb,var(--zone) 12%,transparent);
+  font-family:var(--f-mono);font-size:10px;letter-spacing:.02em;color:var(--fg2);
+  max-width:200px;
+}
+.bedchip svg{width:12px;height:12px;stroke:var(--fg2);fill:none;stroke-width:1.8;flex:0 0 auto}
+.bedchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bedchip--todo{border-color:color-mix(in srgb,var(--open) 45%,transparent);color:var(--open)}
+.bedchip--todo svg{stroke:var(--open)}
+
+/* ---- la tappa del pernotto ---- */
+.stop{position:relative}
+.stop__edit{
+  position:absolute;right:34px;top:9px;padding:5px;opacity:.4;
+}
+.stop__edit svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
+.stop--stay .stop__hd{padding-right:58px}
 
 /* ---- alba e tramonto ---- */
 .day__sun{

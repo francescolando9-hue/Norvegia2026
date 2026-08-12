@@ -302,7 +302,16 @@ const Views = (() => {
     } else {
       const d = Store.day(TRIP.days[idx]);
       const nowM = nowMinutes();
-      const sorted = [...d.fixed].sort((a, b) => mins(a.t) - mins(b.t));
+      // il pernotto entra nella sequenza al suo orario: la giornata
+      // resta cronologica dall'inizio alla fine
+      const seqItems = [...d.fixed];
+      if (d.stay) seqItems.push({
+        id: "stay", t: d.stay.t || "20:00", title: d.stay.name,
+        kind: "stay", status: d.stay.status, at: d.stay.at,
+        meta: (d.stay.checkin ? [d.stay.checkin] : []).concat(d.stay.meta || []),
+        isStay: true
+      });
+      const sorted = seqItems.sort((a, b) => mins(a.t) - mins(b.t));
       let next = sorted.find(f => mins(f.t) >= nowM);
       let sameDay = true;
       if (!next && TRIP.days[idx + 1]) {
@@ -514,7 +523,8 @@ const Views = (() => {
               : f.status === "verify" ? "verify"
               : f.status === "free" ? "free" : "info";
 
-    const row = el("div", `stop stop--${cls}` + (state ? " stop--" + state : "") + (opened ? " stop--open" : ""));
+    const row = el("div", `stop stop--${cls}` + (f.isStay ? " stop--stay" : "") +
+      (state ? " stop--" + state : "") + (opened ? " stop--open" : ""));
     const sub = subLine(f);
 
     row.innerHTML = `
@@ -531,7 +541,8 @@ const Views = (() => {
           ${sub ? `<span class="stop__sub">${esc(sub)}</span>` : ""}
         </span>
         <span class="stop__caret">${ICON.caret}</span>
-      </button>`;
+      </button>
+      ${f.isStay ? `<button class="stop__edit" aria-label="Modifica il pernotto">${ICON.pencil}</button>` : ""}`;
 
     const det = el("div", "stop__det");
     det.hidden = !opened;
@@ -579,6 +590,7 @@ const Views = (() => {
 
     row.appendChild(det);
 
+    if (f.isStay) $(".stop__edit", row).onclick = e => { e.stopPropagation(); staySheet(d); };
     $(".stop__hd", row).onclick = () => {
       if (openStops.has(key)) openStops.delete(key); else openStops.add(key);
       det.hidden = !openStops.has(key);
@@ -586,53 +598,6 @@ const Views = (() => {
       buzz();
     };
     return row;
-  }
-
-  /* ---------- pernotto, in cima alla giornata -------------- */
-  function stayCard(d) {
-    const s = el("div", "sleep" + (d.stay.status === "todo" ? " sleep--todo" : ""));
-    const pl = placeOf(d.stay);
-    const addr = addrOf(d.stay);
-    s.innerHTML = `
-      <span class="sleep__ic">${ICON.bed}</span>
-      <span class="sleep__b">
-        <span class="sleep__k">Stanotte</span>
-        <span class="sleep__name">${esc(d.stay.name)}</span>
-        <span class="sleep__sub">${esc(
-          (pl && pl.addr) ? pl.addr :
-          d.stay.place + (d.stay.status === "todo" ? " · da prenotare" : "")
-        )}</span>
-      </span>
-      <button class="sleep__edit" aria-label="Modifica">${ICON.pencil}</button>`;
-
-    const det = el("div", "sleep__det");
-    det.hidden = true;
-    if (d.stay.meta && d.stay.meta.length) {
-      det.innerHTML = `<ul class="ev__meta">${d.stay.meta.map(m => `<li${HOT.test(m) ? ' class="hot"' : ""}>${esc(m)}</li>`).join("")}</ul>`;
-    }
-    const acts = el("div", "stop__acts");
-    if (addr) {
-      const nav = el("a", "minibtn minibtn--go");
-      nav.href = navUrl(addr); nav.target = "_blank"; nav.rel = "noopener";
-      nav.innerHTML = `${ICON.nav}<span>Portami qui</span>`;
-      acts.appendChild(nav);
-    }
-    if (pl && pl.tel) {
-      const tel = el("a", "minibtn");
-      tel.href = "tel:" + pl.tel.replace(/\s/g, "");
-      tel.innerHTML = `${ICON.phone}<span>${esc(pl.tel)}</span>`;
-      acts.appendChild(tel);
-    }
-    if (acts.children.length) det.appendChild(acts);
-    s.appendChild(det);
-
-    $(".sleep__edit", s).onclick = e => { e.stopPropagation(); staySheet(d); };
-    $(".sleep__b", s).onclick = () => {
-      det.hidden = !det.hidden;
-      s.classList.toggle("sleep--open", !det.hidden);
-      buzz();
-    };
-    return s;
   }
 
   /* ---------- la scheda ----------------------------------- */
@@ -660,14 +625,30 @@ const Views = (() => {
       <h2 class="day__place">${esc(d.wxPlace)}</h2>
       <div class="day__arc">${esc(d.arc)}${d.km ? `<span class="sep">·</span>${esc(d.km)}` : ""}${d.drive ? `<span class="sep">·</span>${esc(d.drive)}` : ""}</div>
       <p class="day__line">${esc(d.headline)}</p>
-      ${w && w.sunrise ? `<div class="day__sun">${ICON.sun}<span>${esc(w.sunrise)} – ${esc(w.sunset)}</span>
-        <em>${Math.round(((("0" + w.sunset).slice(-5).split(":")[0] * 60 + +w.sunset.split(":")[1]) -
-              (+w.sunrise.split(":")[0] * 60 + +w.sunrise.split(":")[1])) / 60)} ore di luce</em></div>` : ""}`;
+      <div class="day__facts"></div>`;
     const badges = el("div", "day__meta");
     badges.appendChild(wxChip(d));
     badges.appendChild(el("span", `day__badge day__badge--${st}`,
       st === "ok" ? "chiuso" : st === "verify" ? "verifica" : "aperto"));
     $(".day__id", head).appendChild(badges);
+
+    /* riga dei fatti del giorno: dove dormi e quanta luce hai */
+    const facts = $(".day__facts", head);
+    if (d.stay) {
+      const bed = el("button", "bedchip" + (d.stay.status === "todo" ? " bedchip--todo" : ""));
+      const corto = d.stay.name.split(/[—·,]/)[0].trim();
+      bed.innerHTML = `${ICON.bed}<span>${esc(corto)}</span>`;
+      bed.title = "Dormi qui: " + d.stay.name;
+      bed.onclick = e => { e.stopPropagation(); staySheet(d); };
+      facts.appendChild(bed);
+    }
+    if (w && w.sunrise && w.sunset) {
+      const a = w.sunrise.split(":"), b = w.sunset.split(":");
+      const ore = Math.round(((+b[0] * 60 + +b[1]) - (+a[0] * 60 + +a[1])) / 60);
+      facts.appendChild(el("span", "sunchip",
+        `${ICON.sun}<span>${esc(w.sunrise)}–${esc(w.sunset)}</span><em>${ore}h di luce</em>`));
+    }
+    if (!facts.children.length) facts.remove();
 
     if (!full) {
       head.classList.add("day__head--tap");
@@ -688,9 +669,6 @@ const Views = (() => {
 
     const body = el("div", "day__body");
 
-    /* --- dove dormi: è l'ancora della giornata, va in cima --- */
-    if (d.stay) body.appendChild(stayCard(d));
-
     /* --- mappa del giorno con le tappe numerate --- */
     if (full) {
       const m = Extra.dayMap(d);
@@ -698,9 +676,18 @@ const Views = (() => {
     }
 
     /* --- sequenza: tappe numerate e trasferimenti in mezzo --- */
-    if (d.fixed.length) {
+    if (d.fixed.length || d.stay) {
       const seq = el("div", "seq");
-      const sorted = [...d.fixed].sort((a, b) => mins(a.t) - mins(b.t));
+      // il pernotto entra nella sequenza al suo orario: la giornata
+      // resta cronologica dall'inizio alla fine
+      const seqItems = [...d.fixed];
+      if (d.stay) seqItems.push({
+        id: "stay", t: d.stay.t || "20:00", title: d.stay.name,
+        kind: "stay", status: d.stay.status, at: d.stay.at,
+        meta: (d.stay.checkin ? [d.stay.checkin] : []).concat(d.stay.meta || []),
+        isStay: true
+      });
+      const sorted = seqItems.sort((a, b) => mins(a.t) - mins(b.t));
       const nowM = nowMinutes();
       let liveIdx = -1;
       if (isToday) for (let i = 0; i < sorted.length; i++) if (mins(sorted[i].t) <= nowM) liveIdx = i;

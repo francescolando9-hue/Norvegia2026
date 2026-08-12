@@ -15,7 +15,7 @@ const TRIP = {
     from: "2026-08-12",
     to: "2026-08-22",
     people: 2,
-    version: "v9.0",
+    version: "v9.1",
     source: "ItinerarioVacanzaNorvegia20260811v6.xlsx",
     fxDefault: 10.95,
     fxNote: "Cambio EUR/NOK indicativo all'11 agosto 2026 (~10,95). Cambialo e tutti gli importi in corone si riconvertono."
@@ -44,7 +44,7 @@ const TRIP = {
         { title: "Aker Brygge e Tjuvholmen", meta: "passeggiata sul lungomare" },
         { title: "Parco Vigeland oppure museo Munch", meta: "scegli uno dei due" }
       ],
-      stay: { name: "Oslo — struttura prenotata", status: "booked", place: "Oslo",
+      stay: { t: "15:00", name: "Oslo — struttura prenotata", status: "booked", place: "Oslo",
         meta: ["Nome struttura da inserire: non è sul file"] },
       notes: ["Atterri alle 13:30 e il Flytoget mette 25 minuti: il pomeriggio in città regge senza fretta."]
     },
@@ -84,7 +84,7 @@ const TRIP = {
         { title: "Tungeneset e gli Okshornan", meta: "passerella sulla roccia" },
         { title: "Ersfjord — spiaggia", meta: "una delle due 'da tuffo' del viaggio" }
       ],
-      stay: { name: "Casa a Husøy, Senja", status: "booked", place: "Husøy",
+      stay: { t: "21:00", name: "Casa a Husøy, Senja", status: "booked", place: "Husøy",
         meta: ["Prenotata via Booking (13–14 ago)", "DA VERIFICARE: orario check-in e come si ritirano le chiavi — arrivi tardi, ~21:00"],
         at: "husoy" },
       notes: [
@@ -120,7 +120,7 @@ const TRIP = {
       flex: [
         { title: "Finestra di riserva per Hesten/Segla", meta: "se ieri il meteo l'ha fatto saltare: partenza 6:30, in auto entro le 11:15. Giornata dura ma ci sta." }
       ],
-      stay: { name: "Marina Hotel Sortland", status: "booked", place: "Sortland",
+      stay: { t: "17:15", name: "Marina Hotel Sortland", status: "booked", place: "Sortland",
         at: "marina",
         meta: [
           "Strandgata 34, 8400 Sortland · +47 41 51 83 00",
@@ -143,9 +143,6 @@ const TRIP = {
       fixed: [
         { t: "09:30", title: "Sortland → Andenes", kind: "drive", status: "info",
           meta: ["Strada Turistica Nazionale di Andøya", "Arrivo ~11:00"] },
-        { t: "11:00", title: "Check-in Thon Hotel Andrikken", kind: "stay", status: "booked",
-          meta: ["Storgata 53, 8480 Andenes", "Booking 5814498621 · NOK 3.245 già pagati l'11 ago"],
-          at: "andrikken" },
         { t: "15:30", title: "Check-in safari balene", kind: "activity", status: "info",
           at: "awt",
           meta: [
@@ -169,7 +166,8 @@ const TRIP = {
         { title: "Trekking al Måtind sopra Bleik", meta: "~2h a/r, passerella, vista dall'alto su Bleiksøya. Verifica stato sentiero." },
         { title: "Safari fauna a Bleiksøya in barca", meta: "1,5h, finestra 12:00–13:30. Valore calato: puffin già partiti (~10 ago), aquile coperte dal Trollfjord, foche dallo snorkeling del 20.", optional: true }
       ],
-      stay: { name: "Thon Hotel Andrikken", status: "booked", place: "Andenes",
+      stay: { t: "11:00", name: "Thon Hotel Andrikken", status: "booked", place: "Andenes",
+        checkin: "Check-in dalle 11:00",
         paid: { nok: 3245 },
         meta: ["Storgata 53, 8480 Andenes, Norvegia", "Prenotazione Booking 5814498621", "Pagato l'11 ago 2026 · NOK 3.245", "Una notte sola: il 16 si scende verso le Lofoten"],
         at: "andrikken" },
@@ -204,7 +202,7 @@ const TRIP = {
       flex: [
         { title: "Hurtigrutemuseet, Stokmarknes", meta: "MS Finnmarken del 1956 dentro un edificio di vetro e acciaio. 10:00–17:00, ~190 NOK, 1h30, a 5 min dalla strada. Miglior piano B se piove.", optional: true }
       ],
-      stay: { name: "Rorbu a Svolvær o Henningsvær", status: "todo", place: "Lofoten est",
+      stay: { t: "14:00", name: "Rorbu a Svolvær o Henningsvær", status: "todo", place: "Lofoten est",
         meta: ["DA PRENOTARE — alta stagione"] },
       notes: [
         "La zona fra Andenes e le Lofoten è povera: l'Hurtigrutemuseet è l'unica sosta programmabile. Nyksund e Stø sono splendidi ma a 1h15 di deviazione da Sortland: non entrano in una giornata che finisce col Trollfjord alle 20:00.",
@@ -238,7 +236,7 @@ const TRIP = {
         { t: "17:00", title: "Haukland → Moskenes", kind: "drive", status: "info", meta: ["~1h20"] }
       ],
       flex: [],
-      stay: { name: "Cozy Tipi — The LOWFO House Lofoten", status: "booked", place: "Moskenes",
+      stay: { t: "18:30", name: "Cozy Tipi — The LOWFO House Lofoten", status: "booked", place: "Moskenes",
         meta: ["Check-in 15:00–22:00 · check-out 10:00–11:00", "Il margine c'è: il check-in arriva fino alle 22:00", "Domattina il Reinebringen è a 10 minuti"],
         at: "moskenes" },
       notes: [
@@ -273,7 +271,7 @@ const TRIP = {
         { t: "18:00", title: "Reine → Ballstad", kind: "drive", status: "info", meta: ["~45 min"] }
       ],
       flex: [],
-      stay: { name: "Kræmmervika Havn", status: "booked", place: "Ballstad",
+      stay: { t: "18:45", name: "Kræmmervika Havn", status: "booked", place: "Ballstad",
         meta: [
           "Kræmmervikveien 36, 8373 Ballstad",
           "Check-in 16:00–22:00 · check-out 06:00–11:00",
@@ -307,7 +305,7 @@ const TRIP = {
           meta: ["Villaggio storico, ~35 min", "Biglietto d'ingresso al villaggio sul posto", "Dipende da quando finisce il corso"] }
       ],
       flex: [],
-      stay: { name: "Hattvika Lodge", status: "todo", place: "Ballstad",
+      stay: { t: "17:00", name: "Hattvika Lodge", status: "todo", place: "Ballstad",
         meta: [
           "DA PRENOTARE — lodge di design",
           "Sauna e vasca idromassaggio NON sempre incluse: conferma il supplemento",
@@ -347,7 +345,7 @@ const TRIP = {
         { title: "Slot jolly del viaggio", meta: "Se un'uscita in mare è saltata per meteo, si recupera qui: 2ª immersione o kayak." },
         { title: "Seconda immersione con Lofoten Diving", meta: "Opzionale, da prenotare. Ripete il 19: primo taglio se serve recuperare budget.", optional: true }
       ],
-      stay: { name: "Lofoten ovest / Ballstad", status: "todo", place: "Lofoten ovest",
+      stay: { t: "17:00", name: "Lofoten ovest / Ballstad", status: "todo", place: "Lofoten ovest",
         meta: ["DA PRENOTARE", "Resta a ovest: domani il traghetto parte da Moskenes"] },
       notes: [
         "Attenzione geografica: lo snorkeling è a HENNINGSVÆR, non a Ballstad. Da Ballstad sono ~50 km.",
@@ -377,7 +375,7 @@ const TRIP = {
             "Riconsegna entro le 21: dopo le 22 i taxi all'aeroporto si diradano e il centro è a 20 min a piedi", "Incluso nel noleggio one-way Sixt"] }
       ],
       flex: [],
-      stay: { name: "Radisson Blu Hotel Bodø", status: "booked", place: "Bodø",
+      stay: { t: "16:30", name: "Radisson Blu Hotel Bodø", status: "booked", place: "Bodø",
         at: "radisson",
         meta: [
           "Storgata 2, 8006 Bodø · +47 75 51 90 00",
