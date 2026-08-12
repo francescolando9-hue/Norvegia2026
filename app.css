@@ -1190,3 +1190,36 @@ input,textarea,select{font-size:16px}   /* sotto i 16px iOS zooma da solo */
 
 /* la riga dell'ora corrente si allinea alla nuova griglia */
 .nowline{margin:6px 0 8px}
+
+/* ---- il costo dentro la tappa ---- */
+.cost{
+  margin-top:10px;padding:10px 12px;border-radius:10px;
+  background:color-mix(in srgb,var(--raise) 65%,transparent);
+  border:1px solid var(--line);
+}
+.cost--paid{border-color:color-mix(in srgb,var(--ok) 30%,var(--line))}
+.cost__row{display:flex;align-items:baseline;gap:10px}
+.cost__k{
+  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--fg3);
+}
+.cost__v{
+  margin-left:auto;font-family:var(--f-mono);font-size:15px;font-weight:500;
+  font-variant-numeric:tabular-nums;
+}
+.cost--paid .cost__v{color:var(--ok)}
+.cost__row--sub{margin-top:4px}
+.cost__d{
+  margin-left:auto;font-family:var(--f-mono);font-size:11px;
+  color:var(--fg3);font-variant-numeric:tabular-nums;
+}
+.cost__d em{font-style:normal;margin-left:6px}
+.cost__d em.up{color:var(--open)}
+.cost__d em.down{color:var(--ok)}
+.cost__n{
+  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--fg3);margin-top:5px;
+}
+.cost__acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.cost--pool{background:transparent;border-style:dashed}
+.cost--pool .cost__d{margin-left:auto;color:var(--fg3)}

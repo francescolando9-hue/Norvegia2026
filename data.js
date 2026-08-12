@@ -15,7 +15,7 @@ const TRIP = {
     from: "2026-08-12",
     to: "2026-08-22",
     people: 2,
-    version: "v9.1",
+    version: "v9.3",
     source: "ItinerarioVacanzaNorvegia20260811v6.xlsx",
     fxDefault: 10.95,
     fxNote: "Cambio EUR/NOK indicativo all'11 agosto 2026 (~10,95). Cambialo e tutti gli importi in corone si riconvertono."
@@ -32,11 +32,11 @@ const TRIP = {
       fixed: [
         { t: "08:20", title: "Malpensa T1 · imbarchi A", kind: "flight", status: "info", at: "mxp",
           meta: ["In aeroporto 2h30 prima", "Bag drop chiude 45 min prima del volo", "Schengen: nessun controllo passaporti"] },
-        { t: "10:50", title: "Volo MXP → OSL · Norwegian DY1877", kind: "flight", status: "booked",
+        { t: "10:50", title: "Volo MXP → OSL · Norwegian DY1877", kind: "flight", status: "booked", bill: "v-mxp",
           meta: ["Arrivo 13:30", "Tariffa Flex"] },
         { t: "13:55", title: "Flytoget aeroporto → centro", kind: "transport", status: "info",
           meta: ["~25 min", "Biglietto sul posto, niente prenotazione"] },
-        { t: "20:00", title: "Cena a Oslo con tuo padre", kind: "meal", status: "booked",
+        { t: "20:00", title: "Cena a Oslo con tuo padre", kind: "meal", status: "booked", bill: "x-cibo",
           meta: ["Annota indirizzo e orario esatti: non sono sul file"] }
       ],
       flex: [
@@ -56,9 +56,9 @@ const TRIP = {
       drive: "3h30", km: "~230 km",
       headline: "Trasferimento lungo e trekking in andata. La spesa la fai per strada.",
       fixed: [
-        { t: "10:00", title: "Volo OSL → TOS · Norwegian DY370", kind: "flight", status: "booked",
+        { t: "10:00", title: "Volo OSL → TOS · Norwegian DY370", kind: "flight", status: "booked", bill: "v-tos",
           meta: ["Arrivo 11:55", "Tariffa LowFare+"] },
-        { t: "13:00", title: "Ritiro auto Sixt · aeroporto Tromsø", kind: "car", status: "booked", at: "sixtTos",
+        { t: "13:00", title: "Ritiro auto Sixt · aeroporto Tromsø", kind: "car", status: "booked", at: "sixtTos", bill: "tr-sixt",
           meta: [
             "Serve carta di CREDITO intestata al conducente + PIN, esibita fisicamente",
             "Prepagate e debito non accettate; preautorizzazione 2.000–2.500 €",
@@ -66,7 +66,7 @@ const TRIP = {
             "Chiedi come vengono addebitati pedaggi e AutoPASS e con quali commissioni",
             "One-way: riconsegna a Bodø il 21"
           ] },
-        { t: "14:30", title: "Spesa e pieno · Finnsnes o Silsand", kind: "stop", status: "free", at: "finnsnes",
+        { t: "14:30", title: "Spesa e pieno · Finnsnes o Silsand", kind: "stop", status: "free", at: "finnsnes", bill: "tr-carburante",
           meta: ["A Husøy non c'è quasi nulla: né negozi né ristoranti affidabili", "Cena e colazione del 14 vanno risolte in casa"] },
         { t: "17:00", title: "Trekking HESTEN da Fjordgård", kind: "trek", status: "free",
           meta: [
@@ -106,7 +106,7 @@ const TRIP = {
           meta: ["Mefjordvær → Finnsnes (PIENO) → E6 → Fossbakken → E10 → Gullesfjordbotn → Sortland"] },
         { t: "17:15", title: "Arrivo a Sortland · check-in e cena veloce", kind: "stop", status: "info",
           meta: ["Mangia PRIMA del safari: finisce alle 21:45"] },
-        { t: "18:45", title: "Safari alci · Vesterålen Tours", kind: "activity", status: "booked",
+        { t: "18:45", title: "Safari alci · Vesterålen Tours", kind: "activity", status: "booked", bill: "e-alci",
           code: "GYG7VKQ52NV4", hasPin: true,
           at: "marina",
           meta: [
@@ -151,7 +151,7 @@ const TRIP = {
             "Vicino all'attracco del traghetto Andenes–Gryllefjord, cartello Arctic Whale Tours sull'edificio rosso",
             "Parcheggio a pochi metri dalla reception, in ordine di arrivo"
           ] },
-        { t: "16:00", title: "Safari balene · capodogli", kind: "activity", status: "booked",
+        { t: "16:00", title: "Safari balene · capodogli", kind: "activity", status: "booked", bill: "e-balene",
           code: "GYGKBF7HWQ3Z", hasPin: true, sea: true,
           at: "awt",
           meta: [
@@ -160,11 +160,11 @@ const TRIP = {
             "Dal Thon Andrikken (Storgata 53) al porto sono pochi minuti",
             "Vestiti a strati: è mare aperto"
           ] },
-        { t: "20:30", title: "Cena tardi ad Andenes", kind: "meal", status: "free", meta: [] }
+        { t: "20:30", title: "Cena tardi ad Andenes", kind: "meal", status: "free", bill: "x-cibo", meta: [] }
       ],
       flex: [
         { title: "Trekking al Måtind sopra Bleik", meta: "~2h a/r, passerella, vista dall'alto su Bleiksøya. Verifica stato sentiero." },
-        { title: "Safari fauna a Bleiksøya in barca", meta: "1,5h, finestra 12:00–13:30. Valore calato: puffin già partiti (~10 ago), aquile coperte dal Trollfjord, foche dallo snorkeling del 20.", optional: true }
+        { title: "Safari fauna a Bleiksøya in barca", bill: "e-bleiksoya", meta: "1,5h, finestra 12:00–13:30. Valore calato: puffin già partiti (~10 ago), aquile coperte dal Trollfjord, foche dallo snorkeling del 20.", optional: true }
       ],
       stay: { t: "11:00", name: "Thon Hotel Andrikken", status: "booked", place: "Andenes",
         checkin: "Check-in dalle 11:00",
@@ -186,12 +186,12 @@ const TRIP = {
       fixed: [
         { t: "09:30", title: "Partenza da Andenes", kind: "drive", status: "info",
           meta: ["Andenes → Sortland → Melbu, ~2h15"] },
-        { t: "12:00", title: "Traghetto Melbu → Fiskebøl", kind: "ferry", status: "verify",
+        { t: "12:00", title: "Traghetto Melbu → Fiskebøl", kind: "ferry", status: "verify", bill: "tr-melbu",
           meta: ["25 min, corse frequenti, ~30 min di anticipo bastano", "NON si prenota: si paga con AutoPASS (lettura targa)", "DA VERIFICARE: orari della domenica 16/8"],
           at: "melbu" },
         { t: "13:45", title: "Arrivo a Svolvær", kind: "stop", status: "info",
           meta: ["Pomeriggio libero: check-in, porto, Svolværgeita dal basso"] },
-        { t: "20:00", title: "Crociera silenziosa Trollfjord + aquile", kind: "activity", status: "todo", at: "svolvaer", sea: true,
+        { t: "20:00", title: "Crociera silenziosa Trollfjord + aquile", kind: "activity", status: "todo", at: "svolvaer", bill: "e-trollfjord", sea: true,
           meta: [
             "Brim Explorer, catamarano ibrido-elettrico, senza esche",
             "Il 16/8 è l'ultimo giorno con 3 corse: dal 17 sono 2/giorno",
@@ -200,7 +200,7 @@ const TRIP = {
           ] }
       ],
       flex: [
-        { title: "Hurtigrutemuseet, Stokmarknes", meta: "MS Finnmarken del 1956 dentro un edificio di vetro e acciaio. 10:00–17:00, ~190 NOK, 1h30, a 5 min dalla strada. Miglior piano B se piove.", optional: true }
+        { title: "Hurtigrutemuseet, Stokmarknes", bill: "e-museo", meta: "MS Finnmarken del 1956 dentro un edificio di vetro e acciaio. 10:00–17:00, ~190 NOK, 1h30, a 5 min dalla strada. Miglior piano B se piove.", optional: true }
       ],
       stay: { t: "14:00", name: "Rorbu a Svolvær o Henningsvær", status: "todo", place: "Lofoten est",
         meta: ["DA PRENOTARE — alta stagione"] },
@@ -219,7 +219,7 @@ const TRIP = {
       fixed: [
         { t: "09:00", title: "Svolvær → Hov Gård, Gimsøy", kind: "drive", status: "info",
           meta: ["~50 min sulla E10: Gimsøy è sulla strada, non è una deviazione"] },
-        { t: "10:00", title: "Tour a cavallo Hov e Hovsund", kind: "activity", status: "todo",
+        { t: "10:00", title: "Tour a cavallo Hov e Hovsund", kind: "activity", status: "todo", bill: "e-cavallo",
           meta: [
             "Cavalli islandesi lungo la spiaggia artica e verso il villaggio di pescatori, fra rastrelliere del pesce e tumuli vichinghi",
             "1,5h, passo lento, nessuna esperienza richiesta",
@@ -228,7 +228,7 @@ const TRIP = {
             "139 €/pers su GetYourGuide · sul sito diretto la mezza giornata 4h con pranzo costa 1.490 NOK/pers"
           ],
           at: "hov" },
-        { t: "12:30", title: "Pranzo al ristorante Låven", kind: "meal", status: "free", at: "hov",
+        { t: "12:30", title: "Pranzo al ristorante Låven", kind: "meal", status: "free", at: "hov", bill: "x-cibo",
           meta: ["In fattoria, a Hov Gård"] },
         { t: "14:00", title: "Haukland e Uttakleiv", kind: "stop", status: "free",
           meta: ["~45 min da Hov", "Sentiero costiero ~45 min tra le due spiagge", "Bagno se c'è sole: 15–17°C, nessun bagnino, entra gradualmente"],
@@ -262,7 +262,7 @@ const TRIP = {
         { t: "11:00", title: "Check-out dal tipi — vincolo secco", kind: "stay", status: "info", meta: [] },
         { t: "11:30", title: "Hamnøy · Sakrisøy · Reine · Å", kind: "stop", status: "free",
           meta: ["5–15 min tra i villaggi", "Å è la fine della E10"] },
-        { t: "14:30", title: "Kayak guidato nel Reinefjorden", kind: "activity", status: "todo", at: "paddling", sea: true,
+        { t: "14:30", title: "Kayak guidato nel Reinefjorden", kind: "activity", status: "todo", at: "paddling", bill: "e-kayak", sea: true,
           meta: [
             "Reine Paddling (Eco-Lighthouse), piccoli gruppi, kayak doppi, ~3h",
             "CHIEDI LO SLOT DEL POMERIGGIO: la mattina è del Reinebringen",
@@ -291,7 +291,7 @@ const TRIP = {
       drive: "0–1h", km: "~50 km",
       headline: "Corso muta stagna al mattino. Pomeriggio leggero per scelta.",
       fixed: [
-        { t: "09:00", title: "Corso muta stagna · Dry Suit Course", kind: "dive", status: "booked",
+        { t: "09:00", title: "Corso muta stagna · Dry Suit Course", kind: "dive", status: "booked", bill: "i-corso",
           code: "2682", sea: true,
           meta: [
             "2 adulti · NOK 3.290 a testa · NOK 6.580 totali",
@@ -301,7 +301,7 @@ const TRIP = {
             "Nota: in piano c'era un'immersione guidata in muta umida 7 mm. Il corso è un'altra cosa — più formazione, meno turismo subacqueo."
           ],
           at: "diving" },
-        { t: "14:00", title: "Nusfjord oppure relax e sauna", kind: "stop", status: "free", at: "nusfjord",
+        { t: "14:00", title: "Nusfjord oppure relax e sauna", kind: "stop", status: "free", at: "nusfjord", bill: "x-varie",
           meta: ["Villaggio storico, ~35 min", "Biglietto d'ingresso al villaggio sul posto", "Dipende da quando finisce il corso"] }
       ],
       flex: [],
@@ -327,7 +327,7 @@ const TRIP = {
       fixed: [
         { t: "08:45", title: "Partenza da Ballstad — limite", kind: "drive", status: "info",
           meta: ["~50 km / 50 min fino a Henningsvær"] },
-        { t: "10:00", title: "Snorkeling con le foche grigie", kind: "activity", status: "verify",
+        { t: "10:00", title: "Snorkeling con le foche grigie", kind: "activity", status: "verify", bill: "e-foche",
           code: "GYGMX4A9RMRF", hasPin: true, sea: true,
           meta: [
             "Lofoten Opplevelser, Dreyers gate 15, edificio giallo, Henningsvær",
@@ -343,7 +343,7 @@ const TRIP = {
       ],
       flex: [
         { title: "Slot jolly del viaggio", meta: "Se un'uscita in mare è saltata per meteo, si recupera qui: 2ª immersione o kayak." },
-        { title: "Seconda immersione con Lofoten Diving", meta: "Opzionale, da prenotare. Ripete il 19: primo taglio se serve recuperare budget.", optional: true }
+        { title: "Seconda immersione con Lofoten Diving", bill: "i-seconda", meta: "Opzionale, da prenotare. Ripete il 19: primo taglio se serve recuperare budget.", optional: true }
       ],
       stay: { t: "17:00", name: "Lofoten ovest / Ballstad", status: "todo", place: "Lofoten ovest",
         meta: ["DA PRENOTARE", "Resta a ovest: domani il traghetto parte da Moskenes"] },
@@ -365,7 +365,7 @@ const TRIP = {
         { t: "08:30", title: "Fila 'Reservert' al porto di Moskenes", kind: "ferry", status: "info",
           meta: ["45 min prima della partenza", "Registrazione passeggeri via QR"],
           at: "moskenesKai" },
-        { t: "09:15", title: "Traghetto Moskenes → Bodø", kind: "ferry", status: "todo", sea: true,
+        { t: "09:15", title: "Traghetto Moskenes → Bodø", kind: "ferry", status: "todo", bill: "tr-moskenes", sea: true,
           meta: ["~3h15", "POSTO AUTO DA PRENOTARE online: +250 NOK, solo 50% della capienza è prenotabile e va esaurito", "Torghatten linea 18-782"] },
         { t: "14:00", title: "Saltstraumen al picco di marea", kind: "stop", status: "verify",
           meta: ["~35 min da Bodø", "CONTROLLA L'ORARIO DEL PICCO: cambia ogni giorno"],
@@ -398,7 +398,7 @@ const TRIP = {
       headline: "Sveglia presto, due voli, a casa per pranzo.",
       fixed: [
         { t: "05:45", title: "Sveglia", kind: "info", status: "info", meta: [] },
-        { t: "08:00", title: "Volo BOO → OSL · Norwegian DY341", kind: "flight", status: "verify",
+        { t: "08:00", title: "Volo BOO → OSL · Norwegian DY341", kind: "flight", status: "verify", bill: "v-ret",
           meta: ["Arrivo 09:30"] },
         { t: "10:40", title: "Volo OSL → MXP · Norwegian DY1878", kind: "flight", status: "verify",
           meta: ["Arrivo 13:20", "Biglietto unico con il precedente: scalo 1h10 protetto", "PREZZO NON ANCORA CHIUSO: in budget a 400 € stimati"] }
@@ -549,14 +549,14 @@ const TRIP = {
     ]},
     { id: "trasporti", section: "Trasporti locali", lines: [
       { id: "tr-sixt", label: "Noleggio Sixt Tromsø → Bodø", day: "13–21 ago", plan: 1914, booked: true, seed: { eur: 1914, date: "2026-08-01" } },
-      { id: "tr-carburante", label: "Carburante · ~1.500 km", day: "—", plan: 350, booked: false },
+      { id: "tr-carburante", pool: true, label: "Carburante · ~1.500 km", day: "—", plan: 350, booked: false },
       { id: "tr-melbu", label: "Traghetto Melbu–Fiskebøl", day: "16 ago", plan: 30, booked: false },
       { id: "tr-moskenes", label: "Traghetto Moskenes–Bodø + posto auto", day: "21 ago", plan: 75, booked: false },
-      { id: "tr-pedaggi", label: "Pedaggi e parcheggi", day: "—", plan: 60, booked: false }
+      { id: "tr-pedaggi", pool: true, label: "Pedaggi e parcheggi", day: "—", plan: 60, booked: false }
     ]},
     { id: "extra", section: "Extra", lines: [
-      { id: "x-cibo", label: "Cibo e ristoranti · ~10 giorni", day: "—", plan: 1200, booked: false, note: "Include la cena a Oslo, già prenotata" },
-      { id: "x-varie", label: "Varie e imprevisti", day: "—", plan: 300, booked: false }
+      { id: "x-cibo", pool: true, label: "Cibo e ristoranti · ~10 giorni", day: "—", plan: 1200, booked: false, note: "Include la cena a Oslo, già prenotata" },
+      { id: "x-varie", pool: true, label: "Varie e imprevisti", day: "—", plan: 300, booked: false }
     ]}
   ],
 

@@ -308,6 +308,7 @@ const Views = (() => {
       if (d.stay) seqItems.push({
         id: "stay", t: d.stay.t || "20:00", title: d.stay.name,
         kind: "stay", status: d.stay.status, at: d.stay.at,
+        bill: stayLineId(d.id),
         meta: (d.stay.checkin ? [d.stay.checkin] : []).concat(d.stay.meta || []),
         isStay: true
       });
@@ -514,6 +515,70 @@ const Views = (() => {
     return row;
   }
 
+  /* ---------- il costo di questa tappa ----------------------
+     Prima l'unico modo era il pulsante "Spesa" del giorno, che
+     accumulava un totale indistinto. Ora ogni tappa collegata a
+     una voce di budget mostra quanto è preventivato, quanto hai
+     speso davvero, e permette di registrarlo da lì.
+     -------------------------------------------------------- */
+  function costBlock(f) {
+    if (!f.bill) return null;
+    const lo = Store.lineOf(f.bill);
+    if (!lo) return null;
+    const spese = Store.expensesFor(f.bill);
+    const speso = Store.spentOn(f.bill);
+    const box = el("div", "cost" + (speso > 0 ? " cost--paid" : ""));
+
+    // una voce cumulativa (cibo, carburante, varie) copre tutto il viaggio:
+    // mostrarne il preventivo accanto a una singola tappa sarebbe fuorviante
+    const pool = !!lo.line.pool;
+    if (pool && speso === 0) {
+      box.classList.add("cost--pool");
+      box.innerHTML = `<div class="cost__row">
+        <span class="cost__k">Su “${esc(lo.line.label)}”</span>
+        <span class="cost__d">nulla registrato</span>
+      </div>`;
+    } else box.innerHTML = `
+      <div class="cost__row">
+        <span class="cost__k">${speso > 0 ? "Speso" : "Preventivo"}</span>
+        <span class="cost__v">${eur2(speso > 0 ? speso : lo.line.plan)}</span>
+      </div>
+      ${!pool && speso > 0 && Math.abs(speso - lo.line.plan) >= 1
+        ? `<div class="cost__row cost__row--sub">
+             <span class="cost__k">Preventivo</span>
+             <span class="cost__d">${eur2(lo.line.plan)}
+               <em class="${speso > lo.line.plan ? "up" : "down"}">${speso > lo.line.plan ? "+" : "−"}${
+                 eur2(Math.abs(speso - lo.line.plan)).replace("€ ", "")}</em></span>
+           </div>` : ""}
+      ${spese.length > 1 ? `<div class="cost__n">${spese.length} registrazioni</div>` : ""}`;
+
+    const acts = el("div", "cost__acts");
+    const add = el("button", "minibtn minibtn--go");
+    add.innerHTML = `${ICON.coin}<span>${speso > 0 ? "Aggiungi" : "Registra la spesa"}</span>`;
+    add.onclick = e => {
+      e.stopPropagation();
+      expenseSheet(null, { lineId: f.bill, date: f.date || null });
+    };
+    acts.appendChild(add);
+
+    if (spese.length === 1) {
+      const mod = el("button", "minibtn");
+      mod.innerHTML = `${ICON.pencil}<span>Correggi</span>`;
+      mod.onclick = e => { e.stopPropagation(); expenseSheet(spese[0]); };
+      acts.appendChild(mod);
+    } else if (spese.length > 1) {
+      const vedi = el("button", "minibtn");
+      vedi.innerHTML = `${ICON.coin}<span>Vedi tutte</span>`;
+      vedi.onclick = e => {
+        e.stopPropagation();
+        S.view = "budget"; S.tab.budget = "spese"; Store.save(); App.render();
+      };
+      acts.appendChild(vedi);
+    }
+    box.appendChild(acts);
+    return box;
+  }
+
   /* ---------- tappa ---------------------------------------- */
   function stopRow(f, d, n, state) {
     const key = d.id + "/" + (f.id || f.title);
@@ -556,10 +621,15 @@ const Views = (() => {
         ${pl.note ? `<em>${esc(pl.note)}</em>` : ""}
       </div>`;
     }
-    if (f.meta && f.meta.length) {
-      html += `<ul class="ev__meta">${f.meta.map(m => `<li${HOT.test(m) ? ' class="hot"' : ""}>${esc(m)}</li>`).join("")}</ul>`;
+    // il sottotitolo della riga compatta non va ristampato qui sotto
+    const resto = (f.meta || []).filter(m => m && m !== sub);
+    if (resto.length) {
+      html += `<ul class="ev__meta">${resto.map(m => `<li${HOT.test(m) ? ' class="hot"' : ""}>${esc(m)}</li>`).join("")}</ul>`;
     }
     det.innerHTML = html;
+
+    const cost = costBlock(Object.assign({ date: d.date }, f));
+    if (cost) det.appendChild(cost);
 
     if (f.code || f.hasPin) {
       const codes = el("div", "codes");
@@ -684,6 +754,7 @@ const Views = (() => {
       if (d.stay) seqItems.push({
         id: "stay", t: d.stay.t || "20:00", title: d.stay.name,
         kind: "stay", status: d.stay.status, at: d.stay.at,
+        bill: stayLineId(d.id),
         meta: (d.stay.checkin ? [d.stay.checkin] : []).concat(d.stay.meta || []),
         isStay: true
       });
@@ -729,7 +800,8 @@ const Views = (() => {
     const mk = (icon, label, fn) => { const b = el("button", null, `${icon}<span>${label}</span>`); b.onclick = fn; return b; };
     const spese = Store.S.expenses.filter(e => e.date === d.date);
     const tot = spese.reduce((a, e) => a + Store.toEur(e), 0);
-    acts.appendChild(mk(ICON.coin, tot ? eur(tot) : "Spesa", () => expenseSheet(null, { date: d.date })));
+    acts.appendChild(mk(ICON.coin, tot ? "Spese " + eur(tot) : "Altra spesa",
+      () => expenseSheet(null, { date: d.date })));
     acts.appendChild(mk(ICON.pencil, "Nota", () => textSheet(
       "Nota · " + d.dateLabel, d.userNote,
       v => { if (v.trim()) S.notes[d.id] = v.trim(); else delete S.notes[d.id]; Store.save(); },
