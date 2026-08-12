@@ -37,7 +37,15 @@ const App = (() => {
     toast(S.theme === "auto" ? "Tema automatico" : S.theme === "dark" ? "Tema scuro" : "Tema chiaro");
   }
 
-  /* ---------- strip dei giorni ---------------------------- */
+  /* ---------- fascia dei giorni ---------------------------
+     Due informazioni diverse, due segnali diversi:
+     · "oggi" è un anello attorno al pallino, sempre lì
+     · "sto guardando questo" è il chip bianco pieno, e segue
+       lo scorrimento della pagina ricentrandosi da solo.
+     -------------------------------------------------------- */
+  let spy = null;          // IntersectionObserver sulle giornate
+  let spyId = null;        // giorno attualmente in vista
+
   function renderStrip() {
     const wrap = $("#strip");
     wrap.innerHTML = "";
@@ -45,15 +53,75 @@ const App = (() => {
     Store.days().forEach(d => {
       const st = Views.dayStatus(d);
       const b = el("button", `chip chip--${st}` +
-        (d.date === t ? " chip--on" : "") + (d.date < t ? " chip--past" : ""));
+        (d.date === t ? " chip--today" : "") + (d.date < t ? " chip--past" : ""));
+      b.dataset.day = d.id;
       b.innerHTML = `<i class="chip__dot"></i>${d.id} <span>${d.dateLabel.split(" ")[0]}</span>`;
-      b.onclick = () => Views.jump(d.id);
+      b.onclick = () => { UI.buzz(); Views.jump(d.id); };
       wrap.appendChild(b);
     });
-    if (!scrolledToToday) {
-      const on = wrap.querySelector(".chip--on") || wrap.querySelector(".chip");
-      if (on) on.scrollIntoView({ inline: "center", block: "nearest" });
-    }
+    // i chip sono nuovi: riapplico il segnale "in vista"
+    const keep = spyId; spyId = null;
+    if (keep) markInView(keep, false);
+    attachSpy();
+  }
+
+  /* centra il chip senza toccare lo scorrimento verticale:
+     scrollIntoView muoverebbe anche la pagina, quindi calcolo
+     scrollLeft a mano. */
+  function centerChip(id, smooth) {
+    const wrap = $("#strip");
+    const chip = wrap && wrap.querySelector(`[data-day="${id}"]`);
+    if (!chip) return;
+    const target = chip.offsetLeft - (wrap.clientWidth - chip.offsetWidth) / 2;
+    const max = wrap.scrollWidth - wrap.clientWidth;
+    const left = Math.max(0, Math.min(target, max));
+    if (Math.abs(wrap.scrollLeft - left) < 2) return;
+    if (smooth && wrap.scrollTo) wrap.scrollTo({ left, behavior: "smooth" });
+    else wrap.scrollLeft = left;
+  }
+
+  function markInView(id, smooth) {
+    if (id === spyId) return;
+    spyId = id;
+    $$("#strip .chip").forEach(c => c.classList.toggle("chip--on", c.dataset.day === id));
+    centerChip(id, smooth !== false);
+  }
+
+  function attachSpy() {
+    if (spy) { spy.disconnect(); spy = null; }
+    if (S.view !== "giorni" || S.tab.giorni !== "lista") return;
+
+    const cards = $$("#main .day");
+    if (!cards.length) return;
+
+    // la giornata "in vista" è quella la cui intestazione è più in alto
+    // fra quelle ancora visibili sotto le barre fisse
+    const top = () => (document.querySelector(".strip")?.getBoundingClientRect().bottom || 90) + 8;
+
+    const pick = () => {
+      const limit = top();
+      let best = null, bestY = Infinity;
+      cards.forEach(c => {
+        const r = c.getBoundingClientRect();
+        if (r.bottom < limit + 20) return;            // già passata
+        const dist = Math.abs(r.top - limit);
+        if (r.top <= limit + 140 && dist < bestY) { bestY = dist; best = c; }
+      });
+      if (!best) {
+        // nessuna intestazione vicina: prendi la prima ancora a schermo
+        best = cards.find(c => c.getBoundingClientRect().bottom > limit) || cards[0];
+      }
+      if (best) markInView(best.id.replace(/^d-/, ""));
+    };
+
+    let raf = null;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => { raf = null; pick(); });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    spy = { disconnect: () => window.removeEventListener("scroll", onScroll) };
+    pick();
   }
 
   /* ---------- nav ---------------------------------------- */
@@ -116,12 +184,14 @@ const App = (() => {
     // porta il primo sguardo sul giorno di oggi
     const i = Views.currentIndex();
     if (i >= 0 && S.view === "giorni") {
+      markInView(TRIP.days[i].id, false);
       setTimeout(() => {
         const n = document.getElementById("d-" + TRIP.days[i].id);
         if (n) n.scrollIntoView({ behavior: "smooth", block: "start" });
         scrolledToToday = true;
       }, 420);
     } else {
+      if (i === -1) markInView(TRIP.days[0].id, false);
       scrolledToToday = true;
     }
 
@@ -231,7 +301,7 @@ const App = (() => {
     requestAnimationFrame(() => bar.classList.add("on"));
   }
 
-  return { go, render, boot, VIEWS };
+  return { go, render, boot, VIEWS, markInView, centerChip };
 })();
 
 document.addEventListener("DOMContentLoaded", App.boot);

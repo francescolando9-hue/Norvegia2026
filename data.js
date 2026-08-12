@@ -15,7 +15,7 @@ const TRIP = {
     from: "2026-08-12",
     to: "2026-08-22",
     people: 2,
-    version: "v8.1",
+    version: "v8.5",
     source: "ItinerarioVacanzaNorvegia20260811v6.xlsx",
     fxDefault: 10.95,
     fxNote: "Cambio EUR/NOK indicativo all'11 agosto 2026 (~10,95). Cambialo e tutti gli importi in corone si riconvertono."
@@ -108,13 +108,26 @@ const TRIP = {
           meta: ["Mangia PRIMA del safari: finisce alle 21:45"] },
         { t: "18:45", title: "Safari alci · Vesterålen Tours", kind: "activity", status: "booked",
           code: "GYG7VKQ52NV4", hasPin: true,
-          meta: ["3h, fine ~21:45", "2 adulti", "Ritrovo a SORTLAND — verifica l'indirizzo esatto sul voucher GetYourGuide"] }
+          map: "Marina Hotel Sortland, Strandgata 34, 8400 Sortland",
+          meta: [
+            "Prelievo sotto il tuo hotel: Strandgata 34. Non devi spostarti",
+            "Sul voucher l'indirizzo è indicato come True Vesterålen Hotel: stesso civico, stesso edificio",
+            "Cerca l'auto con il logo Vesterålen Tours e la targa 'Mooose' oppure 'Whale'",
+            "3h, fine ~21:45 · 2 adulti",
+            "Tieni il telefono a portata: avvisano loro di eventuali cambi dell'ultimo minuto"
+          ] }
       ],
       flex: [
         { title: "Finestra di riserva per Hesten/Segla", meta: "se ieri il meteo l'ha fatto saltare: partenza 6:30, in auto entro le 11:15. Giornata dura ma ci sta." }
       ],
-      stay: { name: "Hotel a Sortland", status: "booked", place: "Sortland",
-        meta: ["Prenotato via Booking (14–15 ago)", "Nome struttura da inserire", "Dormi dove finisce il safari: eviti 1h30 verso Andenes a mezzanotte"] },
+      stay: { name: "Marina Hotel Sortland", status: "booked", place: "Sortland",
+        map: "Marina Hotel Sortland, Strandgata 34, 8400 Sortland",
+        meta: [
+          "Strandgata 34, 8400 Sortland · +47 41 51 83 00",
+          "Il safari alci preleva proprio qui alle 18:45: scendi e sei a posto",
+          "In centro e vicino alla stazione dei bus",
+          "Dormi dove finisce il safari: eviti 1h30 verso Andenes a mezzanotte"
+        ] },
       notes: [
         "Husøy non è più una tappa da incastrare: ci dormi dentro. Il 14 mattina restano solo il faro e la partenza.",
         "Se fai il Segla di riserva, la partenza va data entro le 11:45 — e in quel caso Husøy salta."
@@ -133,11 +146,23 @@ const TRIP = {
         { t: "11:00", title: "Check-in Thon Hotel Andrikken", kind: "stay", status: "booked",
           meta: ["Storgata 53, 8480 Andenes", "Booking 5814498621 · NOK 3.245 già pagati l'11 ago"],
           map: "Thon Hotel Andrikken Storgata 53 Andenes" },
-        { t: "15:15", title: "Check-in safari balene", kind: "activity", status: "info",
-          meta: ["45 min prima della partenza — da confermare con l'operatore"] },
+        { t: "15:30", title: "Check-in safari balene", kind: "activity", status: "info",
+          map: "Arctic Whale Tours, Hamnegata 75, 8480 Andenes",
+          meta: [
+            "Arrivo entro le 15:30 per non perdere il posto: 30 min prima della partenza",
+            "Container nero di accoglienza accanto ai grandi edifici rossi del porto",
+            "Vicino all'attracco del traghetto Andenes–Gryllefjord, cartello Arctic Whale Tours sull'edificio rosso",
+            "Parcheggio a pochi metri dalla reception, in ordine di arrivo"
+          ] },
         { t: "16:00", title: "Safari balene · capodogli", kind: "activity", status: "booked",
           code: "GYGKBF7HWQ3Z", hasPin: true, sea: true,
-          meta: ["Catamarano classico, 4h, rientro ~20:00", "2 adulti (18–64)", "Verosimilmente Arctic Whale Tours / MS Alba — conferma operatore", "Vestiti a strati: è mare aperto"] },
+          map: "Arctic Whale Tours, Hamnegata 75, 8480 Andenes",
+          meta: [
+            "Arctic Whale Tours · Hamnegata 75, 8480 Andenes · +47 48 15 10 97",
+            "Catamarano classico, 4h, rientro ~20:00 · 2 adulti (18–64)",
+            "Dal Thon Andrikken (Storgata 53) al porto sono pochi minuti",
+            "Vestiti a strati: è mare aperto"
+          ] },
         { t: "20:30", title: "Cena tardi ad Andenes", kind: "meal", status: "free", meta: [] }
       ],
       flex: [
@@ -249,8 +274,14 @@ const TRIP = {
       ],
       flex: [],
       stay: { name: "Kræmmervika Havn", status: "booked", place: "Ballstad",
-        meta: ["Check-in 16:00–22:00 · check-out 06:00–11:00", "Domattina l'immersione è a 5 minuti", "Sostituisce Eliassen Rorbuer (Hamnøy)"],
-        map: "Kræmmervika Havn Ballstad" },
+        meta: [
+          "Kræmmervikveien 36, 8373 Ballstad",
+          "Check-in 16:00–22:00 · check-out 06:00–11:00",
+          "Pagato il 26 luglio · 169,33 €",
+          "Domattina l'immersione è a 5 minuti",
+          "Sostituisce Eliassen Rorbuer (Hamnøy)"
+        ],
+        map: "Kræmmervikveien 36, 8373 Ballstad" },
       notes: ["Il vincolo della giornata è il check-out entro le 11:00: Reinebringen 6:30–9:30, bagagli, poi villaggi e kayak."]
     },
 
@@ -344,9 +375,19 @@ const TRIP = {
           meta: ["Di persona, in serata: niente key-drop notturno", "Incluso nel noleggio one-way Sixt"] }
       ],
       flex: [],
-      stay: { name: "Bodø, vicino all'aeroporto", status: "todo", place: "Bodø",
-        meta: ["DA PRENOTARE", "Il volo è alle 08:00: dormi vicino al terminal"] },
-      notes: []
+      stay: { name: "Radisson Blu Hotel Bodø", status: "booked", place: "Bodø",
+        map: "Radisson Blu Hotel Bodø, Storgata 2, 8006 Bodø",
+        meta: [
+          "Storgata 2, 8006 Bodø · +47 75 51 90 00",
+          "Check-in 15:00–23:00 · check-out 00:00–12:00: nessun vincolo per il volo delle 08:00",
+          "In centro, non all'aeroporto: ma il terminal è a ~2,5 km, cinque minuti di taxi",
+          "Pagato 198 €",
+          "L'hotel NON ha parcheggio proprio e la zona è a pagamento con APCOA, non con EasyPark: segnalate multe anche solo per scaricare i bagagli"
+        ] },
+      notes: [
+        "Sequenza consigliata per la sera del 21: Saltstraumen, poi riconsegna dell'auto all'aeroporto, poi taxi in centro all'hotel. Così il parcheggio non è un tuo problema. Se invece tieni l'auto per la notte, devi risolvere dove metterla.",
+        "Il mattino del 22 sono ~2,5 km fino al terminal: prenota il taxi la sera prima alla reception, alle 6 di sabato in strada non ne trovi."
+      ]
     },
 
     {
@@ -432,17 +473,30 @@ const TRIP = {
     { group: "Notti prenotate", items: [
       { id: "b-oslo", title: "Oslo", when: "12 → 13 ago", status: "booked", meta: ["Nome struttura da inserire"] },
       { id: "b-husoy", title: "Casa a Husøy, Senja", when: "13 → 14 ago", status: "booked", meta: ["Via Booking", "Verifica check-in e ritiro chiavi: arrivi ~21:00"] },
-      { id: "b-sortland", title: "Hotel a Sortland", when: "14 → 15 ago", status: "booked", meta: ["Via Booking", "Nome struttura da inserire"] },
+      { id: "b-sortland", title: "Marina Hotel Sortland", when: "14 → 15 ago", status: "booked",
+        meta: ["Strandgata 34, 8400 Sortland · +47 41 51 83 00",
+               "Stesso indirizzo del prelievo del safari alci"] },
       { id: "b-andrikken", title: "Thon Hotel Andrikken, Andenes", when: "15 → 16 ago", status: "booked",
         meta: ["Storgata 53, 8480 Andenes", "Prenotazione Booking 5814498621", "NOK 3.245 pagati l'11 ago 2026", "La ricevuta Booking non è fattura: per la fattura chiedi alla struttura"] },
       { id: "b-tipi", title: "Cozy Tipi — The LOWFO House, Moskenes", when: "17 → 18 ago", status: "booked", meta: ["Check-in 15:00–22:00", "Check-out 10:00–11:00"] },
-      { id: "b-kraem", title: "Kræmmervika Havn, Ballstad", when: "18 → 19 ago", status: "booked", meta: ["Check-in 16:00–22:00", "Check-out 06:00–11:00"] }
+      { id: "b-kraem", title: "Kræmmervika Havn, Ballstad", when: "18 → 19 ago", status: "booked",
+        meta: ["Kræmmervikveien 36, 8373 Ballstad", "Check-in 16:00–22:00 · check-out 06:00–11:00",
+               "169,33 € pagati il 26 luglio"] },
+      { id: "b-radisson", title: "Radisson Blu Hotel Bodø", when: "21 → 22 ago", status: "booked",
+        meta: ["Storgata 2, 8006 Bodø · +47 75 51 90 00", "Check-in 15:00–23:00 · check-out 00:00–12:00",
+               "198 € pagati", "Nessun parcheggio dell'hotel: zona APCOA, non EasyPark"] }
     ]},
     { group: "Esperienze prenotate", items: [
       { id: "b-alci", title: "Safari alci · Vesterålen Tours", when: "ven 14 ago · 18:45 · Sortland", status: "booked",
-        code: "GYG7VKQ52NV4", hasPin: true, meta: ["3h · 2 adulti · GetYourGuide", "Annota il punto d'incontro esatto"] },
+        code: "GYG7VKQ52NV4", hasPin: true,
+        meta: ["3h · 2 adulti · GetYourGuide",
+               "Prelievo sotto l'hotel, Strandgata 34: sul voucher è scritto True Vesterålen, stesso edificio",
+               "Auto con logo Vesterålen Tours, targa 'Mooose' o 'Whale'"] },
       { id: "b-balene", title: "Safari balene · capodogli", when: "sab 15 ago · 16:00 · Andenes", status: "booked",
-        code: "GYGKBF7HWQ3Z", hasPin: true, meta: ["4h · 2 adulti · GetYourGuide", "Catamarano classico", "Check-in ~15:15"] },
+        code: "GYGKBF7HWQ3Z", hasPin: true,
+        meta: ["4h · 2 adulti · GetYourGuide · catamarano classico",
+               "Arctic Whale Tours · Hamnegata 75, 8480 Andenes · +47 48 15 10 97",
+               "Arrivo entro le 15:30: container nero al porto, cartello sull'edificio rosso"] },
       { id: "b-corso", title: "Corso muta stagna · Dry Suit Course", when: "mer 19 ago · 09:00 · Ballstad", status: "booked",
         code: "2682", meta: ["2 adulti · NOK 3.290/pers · NOK 6.580 totali", "Porta brevetti OWD + logbook", "Verifica durata e contenuto del corso"] },
       { id: "b-foche", title: "Snorkeling con le foche grigie", when: "gio 20 ago · 10:00 · Henningsvær", status: "verify",
@@ -466,15 +520,17 @@ const TRIP = {
     { id: "alloggi", section: "Alloggi · 10 notti", lines: [
       { id: "a-oslo", label: "Oslo", day: "12 ago", plan: 180, booked: true },
       { id: "a-husoy", label: "Casa a Husøy, Senja", day: "13 ago", plan: 220, booked: true },
-      { id: "a-sortland", label: "Hotel a Sortland", day: "14 ago", plan: 180, booked: true },
+      { id: "a-sortland", label: "Marina Hotel Sortland", day: "14 ago", plan: 180, booked: true },
       { id: "a-andrikken", label: "Thon Hotel Andrikken, Andenes", day: "15 ago", plan: 180, booked: true,
         seed: { nok: 3245, date: "2026-08-11" }, note: "Pagato l'11 ago · Booking 5814498621" },
       { id: "a-svolvaer", label: "Rorbu a Svolvær / Henningsvær", day: "16 ago", plan: 250, booked: false },
       { id: "a-tipi", label: "Cozy Tipi, Moskenes", day: "17 ago", plan: 230, booked: true },
-      { id: "a-kraem", label: "Kræmmervika Havn, Ballstad", day: "18 ago", plan: 320, booked: true },
+      { id: "a-kraem", label: "Kræmmervika Havn, Ballstad", day: "18 ago", plan: 320, booked: true,
+        seed: { eur: 169.33, date: "2026-07-26" }, note: "Pagato il 26 lug · 151 € sotto il preventivo" },
       { id: "a-hattvika", label: "Hattvika Lodge, Ballstad", day: "19 ago", plan: 300, booked: false, note: "Oppure estendi Kræmmervika" },
       { id: "a-ovest", label: "Lofoten ovest / Ballstad", day: "20 ago", plan: 230, booked: false },
-      { id: "a-bodo", label: "Bodø, vicino aeroporto", day: "21 ago", plan: 180, booked: false }
+      { id: "a-bodo", label: "Radisson Blu Hotel Bodø", day: "21 ago", plan: 180, booked: true,
+        seed: { eur: 198, date: "2026-08-12" }, note: "Storgata 2 · 18 € sopra il preventivo" }
     ]},
     { id: "esperienze", section: "Esperienze", lines: [
       { id: "e-alci", label: "Safari alci · Sortland", day: "14 ago", plan: 250, booked: true },
@@ -628,6 +684,9 @@ const TRIP = {
 
   phones: [
     { label: "Lofoten Opplevelser", value: "+47 905 81 475" },
+    { label: "Arctic Whale Tours", value: "+47 48 15 10 97" },
+    { label: "Radisson Blu Bodø", value: "+47 75 51 90 00" },
+    { label: "Marina Hotel Sortland", value: "+47 41 51 83 00" },
     { label: "Hov Gård", value: "+47 97 55 95 01" },
     { label: "NAF soccorso stradale", value: "+47 23 21 31 00" },
     { label: "Falck", value: "+47 02 222" },
@@ -717,6 +776,16 @@ TRIP.checks = [
   { id: "traghetto-posto", day: "G10", level: "alto",
     title: "Moskenes–Bodø: il posto auto va prenotato",
     body: "Solo metà della capienza è prenotabile online e in alta stagione si esaurisce. Senza posto rischi di restare a terra con il volo la mattina dopo.",
+    action: null },
+
+  { id: "bodo-parcheggio", day: "G10", level: "medio",
+    title: "Radisson Bodø: nessun parcheggio dell'hotel",
+    body: "La zona è gestita da APCOA e EasyPark non la copre. Riconsegna l'auto all'aeroporto la sera del 21 e rientra in taxi: così il problema non ti riguarda.",
+    action: null },
+
+  { id: "taxi-bodo", day: "G11", level: "medio",
+    title: "Taxi per l'aeroporto la mattina del 22",
+    body: "Volo alle 08:00 e 2,5 km da coprire. Alle 6 di sabato mattina in strada non ne trovi: prenotalo la sera prima alla reception.",
     action: null },
 
   { id: "corso-durata", day: "G8", level: "medio",

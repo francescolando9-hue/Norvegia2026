@@ -383,7 +383,9 @@ const Views = (() => {
       <i class="ev__node"></i>
       <div class="ev__b">
         <p class="ev__title">${esc(f.title)}${f._custom ? '<span class="opt">tua</span>' : ""}</p>
-        ${STATUS[f.status] ? `<div class="ev__tags"><span class="tag tag--${f.status === "booked" ? "ok" : f.status === "todo" ? "open" : "verify"}">${STATUS[f.status]}</span></div>` : ""}
+        ${STATUS[f.status] && f.status !== "booked"
+          ? `<div class="ev__tags"><span class="tag tag--${f.status === "todo" ? "open" : "verify"}">${STATUS[f.status]}</span></div>`
+          : ""}
         ${(f.meta && f.meta.length) ? `<ul class="ev__meta">${f.meta.filter(Boolean).map(m => `<li${HOT.test(m) ? ' class="hot"' : ""}>${esc(m)}</li>`).join("")}</ul>` : ""}
       </div>`;
     const b = $(".ev__b", n);
@@ -417,7 +419,12 @@ const Views = (() => {
     const t = todayISO();
     const isToday = d.date === t, isPast = d.date < t;
     const st = dayStatus(d);
-    const card = el("article", "day" + (isToday ? " day--on" : "") + (isPast ? " day--past" : ""));
+    const zona = /Lofoten/.test(d.region) ? "lofoten"
+               : /Senja/.test(d.region) ? "senja"
+               : /Vester|Andøya/.test(d.region) ? "vesteralen"
+               : /Bod/.test(d.region) ? "bodo" : "citta";
+    const card = el("article", `day day--z-${zona}` +
+      (isToday ? " day--on" : "") + (isPast ? " day--past" : ""));
     card.id = "d-" + d.id;
 
     const head = el("div", "day__head" + (full ? " day__head--full" : ""));
@@ -426,6 +433,7 @@ const Views = (() => {
         ${full ? "" : `<span class="day__n">${esc(d.id)}</span>
         <span class="day__date">${esc(d.dow)} ${esc(d.dateLabel)}</span>`}
       </div>
+      <h2 class="day__place">${esc(d.wxPlace)}</h2>
       <div class="day__arc">${esc(d.arc)}${d.km ? `<span class="sep">·</span>${esc(d.km)}` : ""}${d.drive ? `<span class="sep">·</span>${esc(d.drive)}` : ""}</div>
       <p class="day__line">${esc(d.headline)}</p>`;
     const badges = el("div", "day__meta");
@@ -449,7 +457,7 @@ const Views = (() => {
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(e); }
       });
       const go = el("span", "day__open", ICON.caret);
-      head.appendChild(go);
+      $(".day__meta", head).appendChild(go);
     }
     card.appendChild(head);
 
@@ -1211,7 +1219,9 @@ const Views = (() => {
   }
 
   function jump(dayId) {
+    if (S.tab.giorni !== "lista") { S.tab.giorni = "lista"; Store.save(); }
     App.go("giorni");
+    App.markInView(dayId);
     requestAnimationFrame(() => {
       const n = document.getElementById("d-" + dayId);
       if (n) n.scrollIntoView({ behavior: "smooth", block: "start" });
