@@ -413,7 +413,229 @@ const Views = (() => {
     }
     return n;
   }
+  /* ========================================================
+     SCHEDA GIORNATA — riscritta
 
+     Il modello è quello che usano Wanderlog, Tripsy e TripIt:
+     una giornata è una sequenza ordinata di TAPPE numerate,
+     con i TRASFERIMENTI come collegamenti tra una e l'altra.
+
+     Prima ogni tappa mostrava tutto sempre: 25 righe per un
+     giorno. Ora ogni tappa è una riga sola — icona, numero,
+     ora, nome, un dettaglio — e si apre al tocco.
+     ======================================================== */
+
+  /* trasferimenti: non sono tappe, sono ciò che sta in mezzo */
+  const LEG_KINDS = ["drive", "transport", "ferry"];
+  const isLeg = f => LEG_KINDS.includes(f.kind);
+
+  /* icona per tipo: riconosci l'oggetto prima di leggerlo */
+  const KIND_ICON = {
+    flight:   '<svg viewBox="0 0 24 24"><path d="M3 15l18-6-3.5 8-3-3.5-4 2.5L3 15z"/><path d="M11 12.5 8 9"/></svg>',
+    car:      '<svg viewBox="0 0 24 24"><path d="M4 13l1.6-4.4A2 2 0 0 1 7.5 7h9a2 2 0 0 1 1.9 1.6L20 13v4h-1.5M4 17v-4m0 4h1.5m13 0H5.5"/><circle cx="7.5" cy="17" r="1.4"/><circle cx="16.5" cy="17" r="1.4"/></svg>',
+    ferry:    '<svg viewBox="0 0 24 24"><path d="M4 13h16l-2 6H6l-2-6z"/><path d="M6.5 13V8h11v5M12 8V5"/><path d="M2 21c2-1.4 3.5 1 5.5-.4"/></svg>',
+    drive:    '<svg viewBox="0 0 24 24"><path d="M5 20V9l7-5 7 5v11"/><path d="M12 20v-6"/></svg>',
+    stay:     '<svg viewBox="0 0 24 24"><path d="M2 18v-5h20v5M2 18v2M22 18v2M4 13V8h6v5M14 11h6a2 2 0 0 1 2 2"/></svg>',
+    activity: '<svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6.1.8-4.4 4.3 1.1 6.1L12 16.9 6.6 19.8l1.1-6.1L3.3 9.4l6.1-.8z"/></svg>',
+    dive:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2"/><path d="M2 15c2.2-1.8 4-.2 6 0s3.8-1.8 6 0 3.8-.2 6-1M2 19c2.2-1.8 4-.2 6 0s3.8-1.8 6 0 3.8-.2 6-1"/></svg>',
+    trek:     '<svg viewBox="0 0 24 24"><path d="M3 20h18L14 6l-3 5-2-2-6 11z"/></svg>',
+    meal:     '<svg viewBox="0 0 24 24"><path d="M6 3v8a2 2 0 0 0 4 0V3M8 11v10"/><path d="M16 3c-1.5 1-2 2.5-2 4.5S15 11 16 11s2-1.5 2-3.5S17.5 4 16 3zM16 11v10"/></svg>',
+    stop:     '<svg viewBox="0 0 24 24"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.3"/></svg>',
+    info:     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>'
+  };
+  const kindIcon = k => KIND_ICON[k] || KIND_ICON.info;
+
+  const KIND_LABEL = {
+    flight: "volo", car: "auto", ferry: "traghetto", drive: "in strada",
+    stay: "alloggio", activity: "attività", dive: "immersione",
+    trek: "trekking", meal: "pasto", stop: "sosta", info: "riferimento"
+  };
+
+  /* quali tappe sono aperte: transitorio, si riparte compatti */
+  const openStops = new Set();
+
+  /* il dettaglio da mostrare nella riga compatta */
+  function subLine(f) {
+    if (f.sub) return f.sub;
+    const pl = f.at && TRIP.places[f.at];
+    if (pl && pl.addr) return pl.addr;
+    if (f.meta && f.meta.length) return f.meta[0];
+    return "";
+  }
+
+  function placeOf(x) { return x && x.at ? TRIP.places[x.at] : null; }
+  function addrOf(x) {
+    const pl = placeOf(x);
+    return pl ? (pl.addr || pl.name) : (x && x.map) || null;
+  }
+
+  /* ---------- collegamento fra due tappe ------------------- */
+  function legRow(f, d) {
+    const row = el("div", "leg" + (f.status === "todo" ? " leg--todo" : f.status === "verify" ? " leg--verify" : ""));
+    let dur = (f.meta || []).map(m => (m.match(/~?\d+\s*h\s*\d*\d*|\d+\s*min/) || [])[0]).find(Boolean);
+    // se la tratta non dichiara una durata e il giorno ne ha una sola, uso quella
+    if (!dur && d.fixed.filter(isLeg).length === 1) dur = [d.km, d.drive].filter(Boolean).join(" · ");
+    row.innerHTML = `
+      <span class="leg__rail"><i></i></span>
+      <span class="leg__b">
+        <span class="leg__t">${esc(f.title)}</span>
+        <span class="leg__d">${esc([f.t, dur].filter(Boolean).join(" · "))}</span>
+      </span>
+      <span class="leg__go">${ICON.caret}</span>`;
+
+    const det = el("div", "leg__det");
+    det.hidden = true;
+    det.innerHTML = (f.meta && f.meta.length)
+      ? `<ul class="ev__meta">${f.meta.map(m => `<li${HOT.test(m) ? ' class="hot"' : ""}>${esc(m)}</li>`).join("")}</ul>` : "";
+    const a = addrOf(f);
+    if (a) {
+      const nav = el("a", "maplink");
+      nav.href = navUrl(a); nav.target = "_blank"; nav.rel = "noopener";
+      nav.innerHTML = `${ICON.nav}<span>Indicazioni</span>`;
+      det.appendChild(nav);
+    }
+    row.appendChild(det);
+
+    $(".leg__b", row).parentElement.addEventListener("click", e => {
+      if (e.target.closest("a")) return;
+      det.hidden = !det.hidden;
+      row.classList.toggle("leg--open", !det.hidden);
+      buzz();
+    });
+    return row;
+  }
+
+  /* ---------- tappa ---------------------------------------- */
+  function stopRow(f, d, n, state) {
+    const key = d.id + "/" + (f.id || f.title);
+    const opened = openStops.has(key);
+    const cls = f.status === "booked" ? "booked"
+              : f.status === "todo" ? "todo"
+              : f.status === "verify" ? "verify"
+              : f.status === "free" ? "free" : "info";
+
+    const row = el("div", `stop stop--${cls}` + (state ? " stop--" + state : "") + (opened ? " stop--open" : ""));
+    const sub = subLine(f);
+
+    row.innerHTML = `
+      <button class="stop__hd">
+        <span class="stop__n">${n || ""}</span>
+        <span class="stop__ic">${kindIcon(f.kind)}</span>
+        <span class="stop__b">
+          <span class="stop__top">
+            <span class="stop__t">${esc(f.t)}</span>
+            ${STATUS[f.status] && f.status !== "booked"
+              ? `<span class="tag tag--${f.status === "todo" ? "open" : "verify"}">${STATUS[f.status]}</span>` : ""}
+          </span>
+          <span class="stop__title">${esc(f.title)}</span>
+          ${sub ? `<span class="stop__sub">${esc(sub)}</span>` : ""}
+        </span>
+        <span class="stop__caret">${ICON.caret}</span>
+      </button>`;
+
+    const det = el("div", "stop__det");
+    det.hidden = !opened;
+
+    const pl = placeOf(f);
+    let html = "";
+    if (pl) {
+      html += `<div class="stop__place">
+        <b>${esc(pl.name)}</b>
+        ${pl.addr ? `<span>${esc(pl.addr)}</span>` : ""}
+        ${pl.note ? `<em>${esc(pl.note)}</em>` : ""}
+      </div>`;
+    }
+    if (f.meta && f.meta.length) {
+      html += `<ul class="ev__meta">${f.meta.map(m => `<li${HOT.test(m) ? ' class="hot"' : ""}>${esc(m)}</li>`).join("")}</ul>`;
+    }
+    det.innerHTML = html;
+
+    if (f.code || f.hasPin) {
+      const codes = el("div", "codes");
+      if (f.code) {
+        const b = el("button", null, `<span class="k">cod</span>${esc(f.code)}`);
+        b.onclick = () => copy(f.code, "Codice");
+        codes.appendChild(b);
+      }
+      if (f.hasPin) pinChip(f.code, codes);
+      det.appendChild(codes);
+    }
+
+    const acts = el("div", "stop__acts");
+    const a = addrOf(f);
+    if (a) {
+      const nav = el("a", "minibtn minibtn--go");
+      nav.href = navUrl(a); nav.target = "_blank"; nav.rel = "noopener";
+      nav.innerHTML = `${ICON.nav}<span>Portami qui</span>`;
+      acts.appendChild(nav);
+    }
+    if (pl && pl.tel) {
+      const tel = el("a", "minibtn");
+      tel.href = "tel:" + pl.tel.replace(/\s/g, "");
+      tel.innerHTML = `${ICON.phone}<span>${esc(pl.tel)}</span>`;
+      acts.appendChild(tel);
+    }
+    if (acts.children.length) det.appendChild(acts);
+
+    row.appendChild(det);
+
+    $(".stop__hd", row).onclick = () => {
+      if (openStops.has(key)) openStops.delete(key); else openStops.add(key);
+      det.hidden = !openStops.has(key);
+      row.classList.toggle("stop--open", openStops.has(key));
+      buzz();
+    };
+    return row;
+  }
+
+  /* ---------- pernotto, in cima alla giornata -------------- */
+  function stayCard(d) {
+    const s = el("div", "sleep" + (d.stay.status === "todo" ? " sleep--todo" : ""));
+    const pl = placeOf(d.stay);
+    const addr = addrOf(d.stay);
+    s.innerHTML = `
+      <span class="sleep__ic">${ICON.bed}</span>
+      <span class="sleep__b">
+        <span class="sleep__k">Stanotte</span>
+        <span class="sleep__name">${esc(d.stay.name)}</span>
+        <span class="sleep__sub">${esc(
+          (pl && pl.addr) ? pl.addr :
+          d.stay.place + (d.stay.status === "todo" ? " · da prenotare" : "")
+        )}</span>
+      </span>
+      <button class="sleep__edit" aria-label="Modifica">${ICON.pencil}</button>`;
+
+    const det = el("div", "sleep__det");
+    det.hidden = true;
+    if (d.stay.meta && d.stay.meta.length) {
+      det.innerHTML = `<ul class="ev__meta">${d.stay.meta.map(m => `<li${HOT.test(m) ? ' class="hot"' : ""}>${esc(m)}</li>`).join("")}</ul>`;
+    }
+    const acts = el("div", "stop__acts");
+    if (addr) {
+      const nav = el("a", "minibtn minibtn--go");
+      nav.href = navUrl(addr); nav.target = "_blank"; nav.rel = "noopener";
+      nav.innerHTML = `${ICON.nav}<span>Portami qui</span>`;
+      acts.appendChild(nav);
+    }
+    if (pl && pl.tel) {
+      const tel = el("a", "minibtn");
+      tel.href = "tel:" + pl.tel.replace(/\s/g, "");
+      tel.innerHTML = `${ICON.phone}<span>${esc(pl.tel)}</span>`;
+      acts.appendChild(tel);
+    }
+    if (acts.children.length) det.appendChild(acts);
+    s.appendChild(det);
+
+    $(".sleep__edit", s).onclick = e => { e.stopPropagation(); staySheet(d); };
+    $(".sleep__b", s).onclick = () => {
+      det.hidden = !det.hidden;
+      s.classList.toggle("sleep--open", !det.hidden);
+      buzz();
+    };
+    return s;
+  }
+
+  /* ---------- la scheda ----------------------------------- */
   function dayCard(d, opt = {}) {
     const full = !!opt.full;
     const t = todayISO();
@@ -427,6 +649,8 @@ const Views = (() => {
       (isToday ? " day--on" : "") + (isPast ? " day--past" : ""));
     card.id = "d-" + d.id;
 
+    /* --- intestazione --- */
+    const w = Weather.forDay(d);
     const head = el("div", "day__head" + (full ? " day__head--full" : ""));
     head.innerHTML = `
       <div class="day__id">
@@ -435,83 +659,77 @@ const Views = (() => {
       </div>
       <h2 class="day__place">${esc(d.wxPlace)}</h2>
       <div class="day__arc">${esc(d.arc)}${d.km ? `<span class="sep">·</span>${esc(d.km)}` : ""}${d.drive ? `<span class="sep">·</span>${esc(d.drive)}` : ""}</div>
-      <p class="day__line">${esc(d.headline)}</p>`;
+      <p class="day__line">${esc(d.headline)}</p>
+      ${w && w.sunrise ? `<div class="day__sun">${ICON.sun}<span>${esc(w.sunrise)} – ${esc(w.sunset)}</span>
+        <em>${Math.round(((("0" + w.sunset).slice(-5).split(":")[0] * 60 + +w.sunset.split(":")[1]) -
+              (+w.sunrise.split(":")[0] * 60 + +w.sunrise.split(":")[1])) / 60)} ore di luce</em></div>` : ""}`;
     const badges = el("div", "day__meta");
     badges.appendChild(wxChip(d));
-    const bg = el("span", `day__badge day__badge--${st}`, st === "ok" ? "chiuso" : st === "verify" ? "verifica" : "aperto");
-    badges.appendChild(bg);
+    badges.appendChild(el("span", `day__badge day__badge--${st}`,
+      st === "ok" ? "chiuso" : st === "verify" ? "verifica" : "aperto"));
     $(".day__id", head).appendChild(badges);
 
-    // nella lista l'intestazione è la maniglia per aprire la giornata a pieno schermo
     if (!full) {
       head.classList.add("day__head--tap");
       head.setAttribute("role", "button");
       head.setAttribute("tabindex", "0");
       head.setAttribute("aria-label", "Apri " + d.id);
       const open = e => {
-        if (e.target.closest(".wxchip")) return;   // il meteo ha il suo sheet
+        if (e.target.closest(".wxchip")) return;
         buzz(); Extra.openDay(d.id);
       };
       head.addEventListener("click", open);
       head.addEventListener("keydown", e => {
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(e); }
       });
-      const go = el("span", "day__open", ICON.caret);
-      $(".day__meta", head).appendChild(go);
+      $(".day__meta", head).appendChild(el("span", "day__open", ICON.caret));
     }
     card.appendChild(head);
 
     const body = el("div", "day__body");
 
+    /* --- dove dormi: è l'ancora della giornata, va in cima --- */
+    if (d.stay) body.appendChild(stayCard(d));
+
+    /* --- mappa del giorno con le tappe numerate --- */
+    if (full) {
+      const m = Extra.dayMap(d);
+      if (m) body.appendChild(m);
+    }
+
+    /* --- sequenza: tappe numerate e trasferimenti in mezzo --- */
     if (d.fixed.length) {
-      const rail = el("div", "rail");
+      const seq = el("div", "seq");
       const sorted = [...d.fixed].sort((a, b) => mins(a.t) - mins(b.t));
       const nowM = nowMinutes();
       let liveIdx = -1;
-      if (isToday) {
-        for (let i = 0; i < sorted.length; i++) if (mins(sorted[i].t) <= nowM) liveIdx = i;
-      }
-      let lineDone = !isToday;
+      if (isToday) for (let i = 0; i < sorted.length; i++) if (mins(sorted[i].t) <= nowM) liveIdx = i;
+
+      let n = 0, lineDone = !isToday;
       sorted.forEach((f, i) => {
         if (!lineDone && mins(f.t) > nowM) {
-          rail.appendChild(el("div", "nowline", `<i></i><span>adesso ${hhmm(nowM)}</span>`));
+          seq.appendChild(el("div", "nowline", `<i></i><span>adesso ${hhmm(nowM)}</span>`));
           lineDone = true;
         }
-        rail.appendChild(eventNode(f, d, isToday ? (i === liveIdx ? "live" : i < liveIdx ? "past" : "") : ""));
+        const state = isToday ? (i === liveIdx ? "live" : i < liveIdx ? "past" : "") : "";
+        if (isLeg(f)) seq.appendChild(legRow(f, d));
+        else seq.appendChild(stopRow(f, d, ++n, state));
       });
-      if (!lineDone) rail.appendChild(el("div", "nowline nowline--end", `<i></i><span>adesso ${hhmm(nowM)}</span>`));
-      body.appendChild(rail);
+      if (!lineDone) seq.appendChild(el("div", "nowline nowline--end", `<i></i><span>adesso ${hhmm(nowM)}</span>`));
+      body.appendChild(seq);
     }
 
+    /* --- senza orario --- */
     if (d.flex.length) {
       const fb = el("div", "flexband");
-      fb.innerHTML = `<span class="eyebrow">Flessibile · nessun orario</span>
+      fb.innerHTML = `<span class="eyebrow">Senza orario</span>
         <ul>${d.flex.map(f => `<li><b>${esc(f.title)}${f.optional ? '<span class="opt">opzionale</span>' : ""}</b><small>${esc(f.meta)}</small></li>`).join("")}</ul>`;
       body.appendChild(fb);
     }
 
-    if (d.stay) {
-      const s = el("div", "stay" + (d.stay.status === "todo" ? " stay--todo" : ""));
-      s.innerHTML = `
-        <span class="stay__ic">${ICON.bed}</span>
-        <span class="stay__b">
-          <p class="stay__name">${esc(d.stay.name)}<button class="inline-edit" aria-label="Modifica">${ICON.pencil}</button></p>
-          <span class="stay__place">${esc(d.stay.place)}${d.stay.paid ? " · " + nok(d.stay.paid.nok) + " pagati" : d.stay.status === "todo" ? " · da prenotare" : ""}</span>
-          ${(d.stay.meta && d.stay.meta.length) ? `<ul class="ev__meta" style="margin-top:6px">${d.stay.meta.map(m => `<li${HOT.test(m) ? ' class="hot"' : ""}>${esc(m)}</li>`).join("")}</ul>` : ""}
-        </span>`;
-      $(".inline-edit", s).onclick = () => staySheet(d);
-      if (d.stay.map) {
-        const a = el("a", "maplink");
-        a.href = navUrl(d.stay.map); a.target = "_blank"; a.rel = "noopener";
-        a.innerHTML = `${ICON.nav}<span>Portami qui</span>`;
-        $(".stay__b", s).appendChild(a);
-      }
-      body.appendChild(s);
-    }
-
-    /* nota personale del giorno */
-    const noteWrap = el("div", "unote");
+    /* --- nota personale --- */
     if (d.userNote) {
+      const noteWrap = el("div", "unote");
       noteWrap.innerHTML = `<span class="eyebrow">La tua nota</span><p>${esc(d.userNote)}</p>`;
       noteWrap.onclick = () => textSheet("Nota · " + d.dateLabel, d.userNote,
         v => { if (v.trim()) S.notes[d.id] = v.trim(); else delete S.notes[d.id]; Store.save(); },
@@ -519,13 +737,13 @@ const Views = (() => {
       body.appendChild(noteWrap);
     }
 
-    /* azioni del giorno */
+    /* --- azioni --- */
     const acts = el("div", "dayacts");
     const mk = (icon, label, fn) => { const b = el("button", null, `${icon}<span>${label}</span>`); b.onclick = fn; return b; };
     const spese = Store.S.expenses.filter(e => e.date === d.date);
     const tot = spese.reduce((a, e) => a + Store.toEur(e), 0);
     acts.appendChild(mk(ICON.coin, tot ? eur(tot) : "Spesa", () => expenseSheet(null, { date: d.date })));
-    acts.appendChild(mk(ICON.pencil, d.userNote ? "Nota" : "Nota", () => textSheet(
+    acts.appendChild(mk(ICON.pencil, "Nota", () => textSheet(
       "Nota · " + d.dateLabel, d.userNote,
       v => { if (v.trim()) S.notes[d.id] = v.trim(); else delete S.notes[d.id]; Store.save(); },
       { multi: true, label: "Nota", ph: "Numero di casa, dove ho parcheggiato, cosa dice il gestore…" })));

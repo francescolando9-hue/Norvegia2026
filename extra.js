@@ -174,6 +174,108 @@ const Extra = (() => {
     return wrap;
   }
 
+
+  /* ========================================================
+     MAPPA DEL GIORNO — le tappe di una giornata, numerate.
+     Gli stessi numeri della sequenza sotto, così le due viste
+     si parlano. Niente tessere: proiezione dalle coordinate.
+     ======================================================== */
+  function dayMap(d) {
+    const LEG = ["drive", "transport", "ferry"];
+    // numerazione identica a quella della sequenza: conto TUTTE
+    // le tappe, ma disegno solo quelle di cui conosco il posto
+    const sorted = [...d.fixed].sort((a, b) => UI.mins(a.t) - UI.mins(b.t));
+    const pts = [];
+    let n = 0;
+    sorted.forEach(f => {
+      if (LEG.includes(f.kind)) return;
+      n++;
+      const pl = f.at && TRIP.places[f.at];
+      if (pl && pl.lat) pts.push({ n, f, pl, lat: pl.lat, lon: pl.lon });
+    });
+
+    // due tappe nello stesso posto = un pin solo, con i numeri uniti
+    const groups = [];
+    pts.forEach(p => {
+      const same = groups.find(g => g.pl === p.pl);
+      if (same) { same.ns.push(p.n); return; }
+      groups.push({ pl: p.pl, lat: p.lat, lon: p.lon, ns: [p.n], f: p.f });
+    });
+
+    const stayPl = d.stay && d.stay.at && TRIP.places[d.stay.at];
+    const bedShown = !!(stayPl && stayPl.lat && !groups.some(g => g.pl === stayPl));
+    if (bedShown) groups.push({ pl: stayPl, lat: stayPl.lat, lon: stayPl.lon, ns: [], bed: true });
+    if (groups.length < 2) return null;
+
+    const W = 320, H = 200, PAD = 44;
+    const proj = project(groups.map(g => ({ lat: g.lat, lon: g.lon })), W, H, PAD);
+    proj.forEach((q, i) => { groups[i].x = q.x; groups[i].y = q.y; });
+
+    const ordered = groups.filter(g => g.ns.length);
+    const path = ordered.map((g, i) =>
+      (i ? "L" : "M") + g.x.toFixed(1) + " " + g.y.toFixed(1)).join(" ");
+
+    // etichette: lato scelto in base alla posizione, sfalsate se si pestano
+    groups.forEach((g, i) => {
+      g.flip = g.x > W * 0.55;
+      g.dy = 0;
+      for (let j = 0; j < i; j++) {
+        const o = groups[j];
+        if (o.flip === g.flip && Math.abs((o.y + o.dy) - (g.y + g.dy)) < 13) {
+          g.dy += ((o.y + o.dy) < g.y ? 13 : -13);
+        }
+      }
+    });
+
+    const wrap = el("div", "daymap");
+    wrap.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" class="tmap tmap--day" role="img"
+           aria-label="Le tappe di ${esc(d.id)} sulla mappa">
+        ${ordered.length > 1 ? `<path class="tmap__route" d="${path}"/>` : ""}
+        ${groups.map(g => {
+          const lx = g.x + (g.flip ? -12 : 12), ly = g.y + g.dy + 3.5;
+          const cls = g.bed ? "tmap__stop tmap__stop--bed"
+                    : "tmap__stop tmap__stop--" +
+                      (g.f.status === "todo" ? "open" : g.f.status === "verify" ? "verify" : "ok");
+          const etichetta = g.bed ? "\u25AA"
+            : g.ns.length > 1 ? g.ns[0] + "\u2013" + g.ns[g.ns.length - 1] : g.ns[0];
+          const r = g.ns.length > 1 ? 10.5 : 8;
+          return `<g class="${cls}" data-i="${g.ns[0] || ""}" tabindex="0" role="button"
+                     aria-label="${esc(g.pl.name)}">
+            <circle class="tmap__hit" cx="${g.x.toFixed(1)}" cy="${g.y.toFixed(1)}" r="17"/>
+            ${g.dy ? `<line class="tmap__tick" x1="${g.x.toFixed(1)}" y1="${g.y.toFixed(1)}"
+                        x2="${lx.toFixed(1)}" y2="${(ly - 3.5).toFixed(1)}"/>` : ""}
+            <circle class="tmap__dot tmap__dot--num" cx="${g.x.toFixed(1)}" cy="${g.y.toFixed(1)}" r="${r}"/>
+            <text class="tmap__num" x="${g.x.toFixed(1)}" y="${(g.y + 3).toFixed(1)}"
+                  text-anchor="middle">${etichetta}</text>
+            <text class="tmap__lbl" x="${lx.toFixed(1)}" y="${ly.toFixed(1)}"
+                  text-anchor="${g.flip ? "end" : "start"}">${esc(g.pl.name)}</text>
+          </g>`;
+        }).join("")}
+      </svg>
+      <p class="daymap__foot">${(() => {
+        const loc = ordered.reduce((a, g) => a + g.ns.length, 0);
+        const t = loc === n ? loc + (loc === 1 ? " tappa" : " tappe")
+                            : loc + " tappe su " + n + " localizzate";
+        return t + (bedShown ? " · il quadrato è dove dormi" : "");
+      })()}</p>`;
+
+    $$(".tmap__stop", wrap).forEach(g => {
+      g.addEventListener("click", () => {
+        buzz();
+        const i = g.dataset.i;
+        const target = wrap.parentElement &&
+          $$(".stop", wrap.parentElement).find(r => $(".stop__n", r) && $(".stop__n", r).textContent.trim() === i);
+        if (target) {
+          const hd = $(".stop__hd", target);
+          if (target.classList.contains("stop--open") === false && hd) hd.click();
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+    });
+    return wrap;
+  }
+
   /* ========================================================
      AVVISI — in cima a Giorni, sopra tutto il resto.
      ======================================================== */
@@ -470,6 +572,6 @@ const Extra = (() => {
     if (openId) closeDay(true);
   });
 
-  return { bind, mappa, documenti, avvisiCard, openDay, closeDay, shareDay, shareTrip, ICON2,
+  return { bind, mappa, dayMap, documenti, avvisiCard, openDay, closeDay, shareDay, shareTrip, ICON2,
            get openId() { return openId; } };
 })();

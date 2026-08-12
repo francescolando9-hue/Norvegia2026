@@ -15,7 +15,7 @@ const TRIP = {
     from: "2026-08-12",
     to: "2026-08-22",
     people: 2,
-    version: "v8.5",
+    version: "v9.0",
     source: "ItinerarioVacanzaNorvegia20260811v6.xlsx",
     fxDefault: 10.95,
     fxNote: "Cambio EUR/NOK indicativo all'11 agosto 2026 (~10,95). Cambialo e tutti gli importi in corone si riconvertono."
@@ -30,7 +30,7 @@ const TRIP = {
       drive: null, km: null,
       headline: "Volo, mezza giornata in città, cena con tuo padre. Zero auto.",
       fixed: [
-        { t: "08:20", title: "Malpensa T1 · imbarchi A", kind: "flight", status: "info",
+        { t: "08:20", title: "Malpensa T1 · imbarchi A", kind: "flight", status: "info", at: "mxp",
           meta: ["In aeroporto 2h30 prima", "Bag drop chiude 45 min prima del volo", "Schengen: nessun controllo passaporti"] },
         { t: "10:50", title: "Volo MXP → OSL · Norwegian DY1877", kind: "flight", status: "booked",
           meta: ["Arrivo 13:30", "Tariffa Flex"] },
@@ -58,7 +58,7 @@ const TRIP = {
       fixed: [
         { t: "10:00", title: "Volo OSL → TOS · Norwegian DY370", kind: "flight", status: "booked",
           meta: ["Arrivo 11:55", "Tariffa LowFare+"] },
-        { t: "13:00", title: "Ritiro auto Sixt · aeroporto Tromsø", kind: "car", status: "booked",
+        { t: "13:00", title: "Ritiro auto Sixt · aeroporto Tromsø", kind: "car", status: "booked", at: "sixtTos",
           meta: [
             "Serve carta di CREDITO intestata al conducente + PIN, esibita fisicamente",
             "Prepagate e debito non accettate; preautorizzazione 2.000–2.500 €",
@@ -66,16 +66,16 @@ const TRIP = {
             "Chiedi come vengono addebitati pedaggi e AutoPASS e con quali commissioni",
             "One-way: riconsegna a Bodø il 21"
           ] },
-        { t: "14:30", title: "Spesa e pieno · Finnsnes o Silsand", kind: "stop", status: "free",
+        { t: "14:30", title: "Spesa e pieno · Finnsnes o Silsand", kind: "stop", status: "free", at: "finnsnes",
           meta: ["A Husøy non c'è quasi nulla: né negozi né ristoranti affidabili", "Cena e colazione del 14 vanno risolte in casa"] },
         { t: "17:00", title: "Trekking HESTEN da Fjordgård", kind: "trek", status: "free",
           meta: [
             "Hesten 2–3h · 3,6 km a/r · +556 m — è la vista frontale sul Segla, LA fotografia",
             "Alternativa Segla 3–4h, più ripido, ultimo tratto esposto",
             "Arrivando alle 17:00 dopo 3h30 di guida, Hesten è la scelta ragionevole",
-            "Parcheggio trailhead 250 NOK/24h con EasyPark · gratuito al porto in fondo al paese"
+            "Al trailhead NON si parcheggia più: parcheggio a pagamento vicino alla scuola, oppure gratis al porto in fondo al paese"
           ],
-          map: "Segla Trail Head Fjordgård" },
+          at: "hesten" },
         { t: "20:00", title: "Fjordgård → Husøy", kind: "drive", status: "info",
           meta: ["45–60 min, si gira intorno all'Øyfjorden", "Arrivo a casa ~21:00"] }
       ],
@@ -86,7 +86,7 @@ const TRIP = {
       ],
       stay: { name: "Casa a Husøy, Senja", status: "booked", place: "Husøy",
         meta: ["Prenotata via Booking (13–14 ago)", "DA VERIFICARE: orario check-in e come si ritirano le chiavi — arrivi tardi, ~21:00"],
-        map: "Husøy Senja" },
+        at: "husoy" },
       notes: [
         "Percorso tutto via terra: E8 → Nordkjosbotn → E6 → Finnsnes → ponte di Gisund → Fv862 panoramica. I traghetti Brensholmen e Gryllefjord sono esclusi: code fino a 2–3h e non prenotabili.",
         "Il bivio per Fjordgård si incontra PRIMA di Husøy arrivando da Finnsnes: il trekking va fatto in andata. Farlo il 14 mattina costerebbe 45–60 min di ritorno a vuoto."
@@ -108,7 +108,7 @@ const TRIP = {
           meta: ["Mangia PRIMA del safari: finisce alle 21:45"] },
         { t: "18:45", title: "Safari alci · Vesterålen Tours", kind: "activity", status: "booked",
           code: "GYG7VKQ52NV4", hasPin: true,
-          map: "Marina Hotel Sortland, Strandgata 34, 8400 Sortland",
+          at: "marina",
           meta: [
             "Prelievo sotto il tuo hotel: Strandgata 34. Non devi spostarti",
             "Sul voucher l'indirizzo è indicato come True Vesterålen Hotel: stesso civico, stesso edificio",
@@ -121,7 +121,7 @@ const TRIP = {
         { title: "Finestra di riserva per Hesten/Segla", meta: "se ieri il meteo l'ha fatto saltare: partenza 6:30, in auto entro le 11:15. Giornata dura ma ci sta." }
       ],
       stay: { name: "Marina Hotel Sortland", status: "booked", place: "Sortland",
-        map: "Marina Hotel Sortland, Strandgata 34, 8400 Sortland",
+        at: "marina",
         meta: [
           "Strandgata 34, 8400 Sortland · +47 41 51 83 00",
           "Il safari alci preleva proprio qui alle 18:45: scendi e sei a posto",
@@ -145,9 +145,9 @@ const TRIP = {
           meta: ["Strada Turistica Nazionale di Andøya", "Arrivo ~11:00"] },
         { t: "11:00", title: "Check-in Thon Hotel Andrikken", kind: "stay", status: "booked",
           meta: ["Storgata 53, 8480 Andenes", "Booking 5814498621 · NOK 3.245 già pagati l'11 ago"],
-          map: "Thon Hotel Andrikken Storgata 53 Andenes" },
+          at: "andrikken" },
         { t: "15:30", title: "Check-in safari balene", kind: "activity", status: "info",
-          map: "Arctic Whale Tours, Hamnegata 75, 8480 Andenes",
+          at: "awt",
           meta: [
             "Arrivo entro le 15:30 per non perdere il posto: 30 min prima della partenza",
             "Container nero di accoglienza accanto ai grandi edifici rossi del porto",
@@ -156,7 +156,7 @@ const TRIP = {
           ] },
         { t: "16:00", title: "Safari balene · capodogli", kind: "activity", status: "booked",
           code: "GYGKBF7HWQ3Z", hasPin: true, sea: true,
-          map: "Arctic Whale Tours, Hamnegata 75, 8480 Andenes",
+          at: "awt",
           meta: [
             "Arctic Whale Tours · Hamnegata 75, 8480 Andenes · +47 48 15 10 97",
             "Catamarano classico, 4h, rientro ~20:00 · 2 adulti (18–64)",
@@ -172,7 +172,7 @@ const TRIP = {
       stay: { name: "Thon Hotel Andrikken", status: "booked", place: "Andenes",
         paid: { nok: 3245 },
         meta: ["Storgata 53, 8480 Andenes, Norvegia", "Prenotazione Booking 5814498621", "Pagato l'11 ago 2026 · NOK 3.245", "Una notte sola: il 16 si scende verso le Lofoten"],
-        map: "Thon Hotel Andrikken Storgata 53 Andenes" },
+        at: "andrikken" },
       notes: [
         "Il buco della notte del 15 è chiuso: era il primo rimasto nel viaggio.",
         "Le due opzioni di mezzogiorno sono entrambe facoltative. Con check-in balene alle 15:15 la finestra è stretta."
@@ -190,10 +190,10 @@ const TRIP = {
           meta: ["Andenes → Sortland → Melbu, ~2h15"] },
         { t: "12:00", title: "Traghetto Melbu → Fiskebøl", kind: "ferry", status: "verify",
           meta: ["25 min, corse frequenti, ~30 min di anticipo bastano", "NON si prenota: si paga con AutoPASS (lettura targa)", "DA VERIFICARE: orari della domenica 16/8"],
-          map: "Melbu ferjekai" },
+          at: "melbu" },
         { t: "13:45", title: "Arrivo a Svolvær", kind: "stop", status: "info",
           meta: ["Pomeriggio libero: check-in, porto, Svolværgeita dal basso"] },
-        { t: "20:00", title: "Crociera silenziosa Trollfjord + aquile", kind: "activity", status: "todo", sea: true,
+        { t: "20:00", title: "Crociera silenziosa Trollfjord + aquile", kind: "activity", status: "todo", at: "svolvaer", sea: true,
           meta: [
             "Brim Explorer, catamarano ibrido-elettrico, senza esche",
             "Il 16/8 è l'ultimo giorno con 3 corse: dal 17 sono 2/giorno",
@@ -229,18 +229,18 @@ const TRIP = {
             "Alla prenotazione servono nome, peso, altezza, età e livello IN INGLESE",
             "139 €/pers su GetYourGuide · sul sito diretto la mezza giornata 4h con pranzo costa 1.490 NOK/pers"
           ],
-          map: "Hov Gård Gimsøy Lofoten" },
-        { t: "12:30", title: "Pranzo al ristorante Låven", kind: "meal", status: "free",
+          at: "hov" },
+        { t: "12:30", title: "Pranzo al ristorante Låven", kind: "meal", status: "free", at: "hov",
           meta: ["In fattoria, a Hov Gård"] },
         { t: "14:00", title: "Haukland e Uttakleiv", kind: "stop", status: "free",
           meta: ["~45 min da Hov", "Sentiero costiero ~45 min tra le due spiagge", "Bagno se c'è sole: 15–17°C, nessun bagnino, entra gradualmente"],
-          map: "Haukland Beach Lofoten" },
+          at: "haukland" },
         { t: "17:00", title: "Haukland → Moskenes", kind: "drive", status: "info", meta: ["~1h20"] }
       ],
       flex: [],
       stay: { name: "Cozy Tipi — The LOWFO House Lofoten", status: "booked", place: "Moskenes",
         meta: ["Check-in 15:00–22:00 · check-out 10:00–11:00", "Il margine c'è: il check-in arriva fino alle 22:00", "Domattina il Reinebringen è a 10 minuti"],
-        map: "Moskenes Lofoten" },
+        at: "moskenes" },
       notes: [
         "Henningsvær è stato tolto da oggi e spostato al 20: la giornata era ingestibile, ed è ridondante visto che il 20 ci passi comunque.",
         "Il cavallo è l'unica cosa del viaggio che non è né una barca né un trekking: il resto è sbilanciato sull'acqua."
@@ -260,11 +260,11 @@ const TRIP = {
             "Rientro entro le 9:30 per rispettare il check-out",
             "Verifica lo stato del sentiero: possibili chiusure per manutenzione. Evita con pioggia."
           ],
-          map: "Reinebringen trailhead" },
+          at: "reinebringen" },
         { t: "11:00", title: "Check-out dal tipi — vincolo secco", kind: "stay", status: "info", meta: [] },
         { t: "11:30", title: "Hamnøy · Sakrisøy · Reine · Å", kind: "stop", status: "free",
           meta: ["5–15 min tra i villaggi", "Å è la fine della E10"] },
-        { t: "14:30", title: "Kayak guidato nel Reinefjorden", kind: "activity", status: "todo", sea: true,
+        { t: "14:30", title: "Kayak guidato nel Reinefjorden", kind: "activity", status: "todo", at: "paddling", sea: true,
           meta: [
             "Reine Paddling (Eco-Lighthouse), piccoli gruppi, kayak doppi, ~3h",
             "CHIEDI LO SLOT DEL POMERIGGIO: la mattina è del Reinebringen",
@@ -278,10 +278,11 @@ const TRIP = {
           "Kræmmervikveien 36, 8373 Ballstad",
           "Check-in 16:00–22:00 · check-out 06:00–11:00",
           "Pagato il 26 luglio · 169,33 €",
+          "Biancheria da letto a parte, ~100 NOK a testa: non è chiaro in fase di prenotazione",
           "Domattina l'immersione è a 5 minuti",
           "Sostituisce Eliassen Rorbuer (Hamnøy)"
         ],
-        map: "Kræmmervikveien 36, 8373 Ballstad" },
+        at: "kraem" },
       notes: ["Il vincolo della giornata è il check-out entro le 11:00: Reinebringen 6:30–9:30, bagagli, poi villaggi e kayak."]
     },
 
@@ -301,8 +302,8 @@ const TRIP = {
             "DA VERIFICARE: durata effettiva e cosa include (teoria, attrezzatura, quante immersioni). Un corso muta stagna è di norma mezza o intera giornata: se sfora, Nusfjord salta.",
             "Nota: in piano c'era un'immersione guidata in muta umida 7 mm. Il corso è un'altra cosa — più formazione, meno turismo subacqueo."
           ],
-          map: "Lofoten Diving Ballstad" },
-        { t: "14:00", title: "Nusfjord oppure relax e sauna", kind: "stop", status: "free",
+          at: "diving" },
+        { t: "14:00", title: "Nusfjord oppure relax e sauna", kind: "stop", status: "free", at: "nusfjord",
           meta: ["Villaggio storico, ~35 min", "Biglietto d'ingresso al villaggio sul posto", "Dipende da quando finisce il corso"] }
       ],
       flex: [],
@@ -312,7 +313,7 @@ const TRIP = {
           "Sauna e vasca idromassaggio NON sempre incluse: conferma il supplemento",
           "ALTERNATIVA: estendi Kræmmervika Havn ed eviti il trasloco di una notte sola"
         ],
-        map: "Hattvika Lodge Ballstad" },
+        at: "hattvika" },
       notes: [
         "Ultima immersione a 3 giorni dal volo: nessun vincolo di risalita.",
         "Se il corso occupa tutta la giornata, la sera resta solo la sauna. Valuta di non spostarti da Kræmmervika."
@@ -337,10 +338,10 @@ const TRIP = {
             "⚠ BIGLIETTO NON ANCORA EMESSO e la stagione pubblicata è 10/6–15/8: il 20/8 è FUORI FINESTRA",
             "CHIAMA +47 905 81 475 oppure post@lofoten-opplevelser.no"
           ],
-          map: "Lofoten Opplevelser Dreyers gate 15 Henningsvær" },
+          at: "opplevelser" },
         { t: "13:00", title: "Henningsvær", kind: "stop", status: "free",
           meta: ["Il villaggio sugli isolotti, le gallerie d'arte, il celebre campo da calcio", "Pranzo al porto"],
-          map: "Henningsvær Lofoten" }
+          at: "henningsvaer" }
       ],
       flex: [
         { title: "Slot jolly del viaggio", meta: "Se un'uscita in mare è saltata per meteo, si recupera qui: 2ª immersione o kayak." },
@@ -365,18 +366,19 @@ const TRIP = {
           meta: ["~1h20, 80 km", "PIENO prima del traghetto: distributori radi"] },
         { t: "08:30", title: "Fila 'Reservert' al porto di Moskenes", kind: "ferry", status: "info",
           meta: ["45 min prima della partenza", "Registrazione passeggeri via QR"],
-          map: "Moskenes ferjekai" },
+          at: "moskenesKai" },
         { t: "09:15", title: "Traghetto Moskenes → Bodø", kind: "ferry", status: "todo", sea: true,
           meta: ["~3h15", "POSTO AUTO DA PRENOTARE online: +250 NOK, solo 50% della capienza è prenotabile e va esaurito", "Torghatten linea 18-782"] },
         { t: "14:00", title: "Saltstraumen al picco di marea", kind: "stop", status: "verify",
           meta: ["~35 min da Bodø", "CONTROLLA L'ORARIO DEL PICCO: cambia ogni giorno"],
-          map: "Saltstraumen" },
-        { t: "19:00", title: "Riconsegna auto · aeroporto Bodø", kind: "car", status: "booked",
-          meta: ["Di persona, in serata: niente key-drop notturno", "Incluso nel noleggio one-way Sixt"] }
+          at: "saltstraumen" },
+        { t: "19:00", title: "Riconsegna auto · aeroporto Bodø", kind: "car", status: "booked", at: "boo",
+          meta: ["Di persona, in serata: niente key-drop notturno",
+            "Riconsegna entro le 21: dopo le 22 i taxi all'aeroporto si diradano e il centro è a 20 min a piedi", "Incluso nel noleggio one-way Sixt"] }
       ],
       flex: [],
       stay: { name: "Radisson Blu Hotel Bodø", status: "booked", place: "Bodø",
-        map: "Radisson Blu Hotel Bodø, Storgata 2, 8006 Bodø",
+        at: "radisson",
         meta: [
           "Storgata 2, 8006 Bodø · +47 75 51 90 00",
           "Check-in 15:00–23:00 · check-out 00:00–12:00: nessun vincolo per il volo delle 08:00",
@@ -793,3 +795,68 @@ TRIP.checks = [
     body: "Un corso muta stagna occupa di norma mezza o intera giornata. Se sfora, Nusfjord e l'eventuale trasloco a Hattvika saltano.",
     action: null }
 ];
+
+/* ============================================================
+   Registro dei luoghi.
+
+   Prima ogni tappa portava una stringa di ricerca per le mappe e
+   nient'altro. Così un luogo è un oggetto: indirizzo, telefono,
+   coordinate. Le tappe lo referenziano con `at`, quindi lo stesso
+   posto non va riscritto due volte e le coordinate permettono di
+   numerarle sulla mappa anche offline.
+   ============================================================ */
+TRIP.places = {
+  mxp:        { name: "Malpensa T1", addr: "Aeroporto di Milano Malpensa, Terminal 1", lat: 45.6301, lon: 8.7255 },
+  osl:        { name: "Oslo Gardermoen", addr: "Oslo lufthavn, Gardermoen", lat: 60.1939, lon: 11.1004 },
+  osloCentro: { name: "Oslo centro", addr: "Oslo, Norvegia", lat: 59.9139, lon: 10.7522 },
+  tos:        { name: "Aeroporto di Tromsø", addr: "Tromsø lufthavn Langnes", lat: 69.6819, lon: 18.9189 },
+  sixtTos:    { name: "Sixt · aeroporto di Tromsø", addr: "Flyplassvegen 31, 9016 Tromsø",
+                tel: "+47 91 75 58 99", lat: 69.6805, lon: 18.9086,
+                note: "Aperto fino a mezzanotte da lunedì a venerdì" },
+  finnsnes:   { name: "Finnsnes", addr: "Finnsnes, Norvegia", lat: 69.2294, lon: 17.9836 },
+  hesten:     { name: "Trailhead Hesten", addr: "Fjordgård, Senja", lat: 69.5085, lon: 17.6232,
+                note: "Al trailhead non si parcheggia più: il parcheggio a pagamento è vicino alla scuola" },
+  husoy:      { name: "Husøy", addr: "Husøy, Senja", lat: 69.5423, lon: 17.6626 },
+  marina:     { name: "Marina Hotel Sortland", addr: "Strandgata 34, 8400 Sortland",
+                tel: "+47 41 51 83 00", lat: 68.6924, lon: 15.4153 },
+  andrikken:  { name: "Thon Hotel Andrikken", addr: "Storgata 53, 8480 Andenes",
+                tel: "+47 76 14 90 90", lat: 69.3165, lon: 16.1207 },
+  awt:        { name: "Arctic Whale Tours", addr: "Hamnegata 75, 8480 Andenes",
+                tel: "+47 48 15 10 97", lat: 69.3241, lon: 16.1331,
+                note: "Container nero al porto, accanto agli edifici rossi" },
+  melbu:      { name: "Melbu ferjekai", addr: "Melbu, Norvegia", lat: 68.4987, lon: 14.8010 },
+  svolvaer:   { name: "Svolvær", addr: "Svolvær, Lofoten", lat: 68.2340, lon: 14.5680 },
+  hov:        { name: "Hov Gård", addr: "Tore Hjortsvei 471, 8314 Gimsøysand",
+                tel: "+47 97 55 95 01", lat: 68.3382, lon: 14.1104,
+                note: "Il caffè della fattoria apre tardi rispetto alle uscite del mattino" },
+  haukland:   { name: "Haukland", addr: "Uttakleivveien 200, 8370 Leknes", lat: 68.1986, lon: 13.5287 },
+  moskenes:   { name: "Moskenes", addr: "Moskenes, Lofoten", lat: 67.8990, lon: 13.0450 },
+  reinebringen:{ name: "Trailhead Reinebringen", addr: "Ramsviktunnelen, 8390 Reine", lat: 67.9223, lon: 13.0784 },
+  reine:      { name: "Reine", addr: "Reine, Lofoten", lat: 67.9330, lon: 13.0900 },
+  paddling:   { name: "Reine Paddling", addr: "Sverdrupsvei 9, 8390 Reine",
+                tel: "+47 75 57 70 01", lat: 67.9348, lon: 13.0912, note: "Aperto 10:00–22:00" },
+  kraem:      { name: "Kræmmervika Havn", addr: "Kræmmervikveien 36, 8373 Ballstad",
+                tel: "+47 91 66 13 30", lat: 68.0665, lon: 13.5346,
+                note: "1,5 km dal centro, sull'altro lato del porto" },
+  diving:     { name: "Lofoten Diving", addr: "Øyaveien 31, 8373 Ballstad",
+                tel: "+47 40 05 18 52", lat: 68.0782, lon: 13.5429,
+                note: "1,5 km da Kræmmervika · scrivono su WhatsApp" },
+  hattvika:   { name: "Hattvika Lodge", addr: "Hattvikveien 14, 8373 Ballstad",
+                tel: "+47 90 79 98 55", lat: 68.0714, lon: 13.5479 },
+  nusfjord:   { name: "Nusfjord", addr: "Nusfjord, 8380 Ramberg",
+                tel: "+47 76 09 30 20", lat: 68.0353, lon: 13.3475,
+                note: "Ingresso al villaggio a pagamento · bastano due ore" },
+  opplevelser:{ name: "Lofoten Opplevelser", addr: "Dreyers gate 15, 8312 Henningsvær",
+                tel: "+47 90 58 14 75", lat: 68.1542, lon: 14.2039, note: "Edificio giallo" },
+  henningsvaer:{ name: "Henningsvær", addr: "Henningsvær, Lofoten", lat: 68.1510, lon: 14.2000 },
+  ballstad:   { name: "Ballstad", addr: "Ballstad, Lofoten", lat: 68.0740, lon: 13.5340 },
+  moskenesKai:{ name: "Moskenes ferjekai", addr: "Birger Eriksens vei 35, 8392 Moskenes",
+                lat: 67.8999, lon: 13.0439,
+                note: "Cancellazioni frequenti e traghetti pieni: il posto auto prenotato è l'unica garanzia" },
+  saltstraumen:{ name: "Saltstraumen", addr: "8056 Saltstraumen", lat: 67.2313, lon: 14.6139,
+                note: "Si scende a livello dell'acqua · il picco è la cosa da azzeccare" },
+  boo:        { name: "Aeroporto di Bodø", addr: "Olav V gate 56, 8004 Bodø", lat: 67.2666, lon: 14.3609,
+                note: "20 minuti a piedi dal centro · dopo le 22 i taxi si diradano" },
+  radisson:   { name: "Radisson Blu Hotel Bodø", addr: "Storgata 2, 8006 Bodø",
+                tel: "+47 75 51 90 00", lat: 67.2822, lon: 14.3751 }
+};
