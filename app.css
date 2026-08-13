@@ -472,7 +472,11 @@ svg{width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:1.7;stroke
 }
 .exrow:last-child{border-bottom:0}
 .exrow:active{background:var(--raise)}
-.exrow--seed{opacity:.72}
+/* le spese precaricate non sono diverse dalle altre: si modificano */
+.exrow__hit{display:flex;align-items:center;gap:10px;flex:1;min-width:0;text-align:left}
+.exrow__pen{flex:0 0 auto;opacity:.35}
+.exrow__pen svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
+.exrow__hit:active{opacity:.6}
 .exrow__d{
   flex:0 0 48px;font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--fg3);

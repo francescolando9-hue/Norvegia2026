@@ -86,7 +86,7 @@ const Views = (() => {
       : (e.cat && !e.lineId ? "loose:" + e.cat
       : (prefill.lineId ? "line:" + prefill.lineId
       : (prefill.extra ? "loose:extra" : "")));
-    const cur = e.cur || prefill.cur || "NOK";
+    const cur = e.cur || prefill.cur || "EUR";
 
     sheet(existing ? "Modifica spesa" : "Registra una spesa", (body, done) => {
       body.innerHTML = `
@@ -94,8 +94,8 @@ const Views = (() => {
             <input class="in in--big" id="ex-amt" type="number" inputmode="decimal" step="0.01" min="0"
                    value="${e.amount != null ? e.amount : ""}" placeholder="0">
             <div class="seg seg--cur" id="ex-cur">
-              <button data-v="NOK" class="${cur === "NOK" ? "on" : ""}">NOK</button>
               <button data-v="EUR" class="${cur === "EUR" ? "on" : ""}">EUR</button>
+              <button data-v="NOK" class="${cur === "NOK" ? "on" : ""}">NOK</button>
             </div>
           </div>`, `Cambio in uso: 1 € = ${num(S.fx)} NOK`)}
         ${field("Voce di budget", `<select class="in" id="ex-line">${lineOptions(sel)}</select>`,
@@ -1036,8 +1036,8 @@ const Views = (() => {
         ${already.length ? "" : field("Quanto hai pagato", `<div class="cur">
             <input class="in in--big" id="st-amt" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0">
             <div class="seg seg--cur" id="st-cur">
-              <button data-v="NOK" class="on">NOK</button>
-              <button data-v="EUR">EUR</button>
+              <button data-v="EUR" class="on">EUR</button>
+              <button data-v="NOK">NOK</button>
             </div>
           </div>`, "Facoltativo. Diventa una spesa registrata sulla voce di budget di questa notte.")}
         <div class="conv" id="st-conv"></div>
@@ -1046,7 +1046,7 @@ const Views = (() => {
           }. Per correggerlo vai in Budget → Spese.</p>` : ""}
         ${actions("Salva", "Annulla")}`;
 
-      let cur = "NOK";
+      let cur = "EUR";
       const amt = $("#st-amt", body);
       const conv = $("#st-conv", body);
       const paint = () => {
@@ -1274,18 +1274,27 @@ const Views = (() => {
     }, { focus: false });
   }
 
+  /* Ogni spesa è modificabile, comprese quelle precaricate.
+     Prima erano attenuate e senza affordance: sembravano bloccate. */
   function expenseRow(e, afterEdit) {
     const line = e.lineId ? Store.lineOf(e.lineId) : null;
-    const row = el("button", "exrow" + (e.seed ? " exrow--seed" : ""));
+    const row = el("div", "exrow");
     row.innerHTML = `
-      <span class="exrow__d">${esc(dateShort(e.date))}</span>
-      <span class="exrow__b">
-        <b>${esc(line ? line.line.label : (e.note || "Spesa fuori piano"))}</b>
-        <small>${esc(e.note || (line ? line.sec.section : "Fuori piano"))}${e.seed ? " · anticipato" : ""}</small>
-      </span>
-      <span class="exrow__v">${e.cur === "NOK" ? nok(e.amount) : eur2(e.amount)}
-        <i>${e.cur === "NOK" ? eur2(Store.toEur(e)) : ""}</i></span>`;
-    row.onclick = () => { if (afterEdit) afterEdit(); expenseSheet(e); };
+      <button class="exrow__hit">
+        <span class="exrow__d">${esc(dateShort(e.date))}</span>
+        <span class="exrow__b">
+          <b>${esc(line ? line.line.label : (e.note || "Spesa fuori piano"))}</b>
+          <small>${esc(e.note || (line ? line.sec.section : "Fuori piano"))}${e.seed ? " · anticipato" : ""}</small>
+        </span>
+        <span class="exrow__v">${e.cur === "NOK" ? nok(e.amount) : eur2(e.amount)}
+          <i>${e.cur === "NOK" ? eur2(Store.toEur(e)) : ""}</i></span>
+        <span class="exrow__pen">${ICON.pencil}</span>
+      </button>
+      <button class="exrow__x" aria-label="Elimina">${ICON.trash}</button>`;
+    $(".exrow__hit", row).onclick = () => { if (afterEdit) afterEdit(); expenseSheet(e); };
+    $(".exrow__x", row).onclick = () => {
+      Store.removeExpense(e.id); buzz(); rerender(); toast("Spesa eliminata");
+    };
     return row;
   }
 

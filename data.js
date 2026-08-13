@@ -15,7 +15,7 @@ const TRIP = {
     from: "2026-08-12",
     to: "2026-08-22",
     people: 2,
-    version: "v9.7",
+    version: "v9.8",
     source: "ItinerarioVacanzaNorvegia20260811v6.xlsx",
     fxDefault: 10.95,
     fxNote: "Cambio EUR/NOK indicativo all'11 agosto 2026 (~10,95). Cambialo e tutti gli importi in corone si riconvertono."
@@ -398,10 +398,10 @@ const TRIP = {
       headline: "Sveglia presto, due voli, a casa per pranzo.",
       fixed: [
         { t: "05:45", title: "Sveglia", kind: "info", status: "info", meta: [] },
-        { t: "08:00", title: "Volo BOO → OSL · Norwegian DY341", kind: "flight", status: "verify", bill: "v-ret",
+        { t: "08:00", title: "Volo BOO → OSL · Norwegian DY341", kind: "flight", status: "booked", bill: "v-ret",
           meta: ["Arrivo 09:30"] },
-        { t: "10:40", title: "Volo OSL → MXP · Norwegian DY1878", kind: "flight", status: "verify",
-          meta: ["Arrivo 13:20", "Biglietto unico con il precedente: scalo 1h10 protetto", "PREZZO NON ANCORA CHIUSO: in budget a 400 € stimati"] }
+        { t: "10:40", title: "Volo OSL → MXP · Norwegian DY1878", kind: "flight", status: "booked",
+          meta: ["Arrivo 13:20", "Biglietto unico con il precedente: scalo 1h10 protetto", "Acquistato · 586 € per due"] }
       ],
       flex: [],
       stay: null,
@@ -440,10 +440,6 @@ const TRIP = {
     { id: "t-notti", pri: 3, label: "Notti 19, 20 e 21 agosto",
       why: "Hattvika Lodge (o estendi Kræmmervika), Lofoten ovest, Bodø vicino aeroporto.",
       how: "~710 € stimati in totale", when: "entro 17/8" },
-    { id: "t-ritorno", pri: 3, label: "Chiudi il prezzo dei voli di ritorno",
-      why: "BOO→OSL→MXP del 22/8 non è ancora acquistato: 400 € sono una stima.",
-      how: "norwegian.com · LowFare+, non rimborsabile, 1 bagaglio", when: "entro 17/8",
-      url: "https://www.norwegian.com" },
     { id: "t-corso", pri: 3, label: "Durata reale del corso muta stagna del 19/8",
       why: "Se occupa tutta la giornata, Nusfjord e l'eventuale trasloco a Hattvika saltano.",
       how: "Scrivi a Lofoten Diving citando il rif. 2682", when: "entro 17/8",
@@ -464,7 +460,7 @@ const TRIP = {
     { group: "Voli", items: [
       { id: "b-dy1877", title: "MXP → OSL · Norwegian DY1877", when: "mer 12 ago · 10:50–13:30", status: "booked", meta: ["Tariffa Flex", "2 persone"] },
       { id: "b-dy370", title: "OSL → TOS · Norwegian DY370", when: "gio 13 ago · 10:00–11:55", status: "booked", meta: ["Tariffa LowFare+", "2 persone"] },
-      { id: "b-ritorno", title: "BOO → OSL → MXP · DY341 + DY1878", when: "sab 22 ago · 08:00–13:20", status: "verify", meta: ["Biglietto unico, scalo 1h10 protetto", "PREZZO NON CHIUSO: da acquistare"] }
+      { id: "b-ritorno", title: "BOO → OSL → MXP · DY341 + DY1878", when: "sab 22 ago · 08:00–13:20", status: "verify", meta: ["Biglietto unico, scalo 1h10 protetto", "Acquistato · 586 € per due"] }
     ]},
     { group: "Auto", items: [
       { id: "b-sixt", title: "Sixt · Tromsø → Bodø, one-way", when: "13 ago 13:00 → 21 ago sera", status: "booked",
@@ -513,9 +509,12 @@ const TRIP = {
      caricato una volta sola nel registro spese.                */
   budget: [
     { id: "voli", section: "Voli", lines: [
-      { id: "v-mxp", label: "Milano → Oslo · DY1877 Flex", day: "12 ago", plan: 566.72, booked: true, seed: { eur: 566.72, date: "2026-07-01" } },
-      { id: "v-tos", label: "Oslo → Tromsø · DY370 LowFare+", day: "13 ago", plan: 136.60, booked: true, seed: { eur: 136.60, date: "2026-07-01" } },
-      { id: "v-ret", label: "Bodø → Oslo → Milano · DY341/1878", day: "22 ago", plan: 400.00, booked: false, note: "Stima: prezzo da confermare" }
+      { id: "v-mxp", label: "Milano → Oslo · DY1877 Flex", day: "12 ago", plan: 566.72, booked: true,
+        seed: { eur: 567, date: "2026-07-01" } },
+      { id: "v-tos", label: "Oslo → Tromsø · DY370 LowFare+", day: "13 ago", plan: 136.60, booked: true,
+        seed: { eur: 164, date: "2026-07-01" }, note: "27 € sopra il preventivo" },
+      { id: "v-ret", label: "Bodø → Oslo → Milano · DY341/1878", day: "22 ago", plan: 400.00, booked: true,
+        seed: { eur: 586, date: "2026-08-12" }, note: "186 € sopra la stima di 400" }
     ]},
     { id: "alloggi", section: "Alloggi · 10 notti", lines: [
       { id: "a-oslo", label: "Oslo", day: "12 ago", plan: 180, booked: true },
@@ -548,6 +547,8 @@ const TRIP = {
       { id: "i-seconda", label: "Seconda immersione", day: "20 ago", plan: 330, booked: false, optional: true }
     ]},
     { id: "trasporti", section: "Trasporti locali", lines: [
+      { id: "tr-parcheggio", label: "Parcheggio a Malpensa · 11 giorni", day: "12–22 ago", plan: 238.50, booked: true,
+        seed: { eur: 238.50, date: "2026-08-12" }, note: "Da confermare: è il parcheggio all'aeroporto?" },
       { id: "tr-sixt", label: "Noleggio Sixt Tromsø → Bodø", day: "13–21 ago", plan: 1914, booked: true, seed: { eur: 1914, date: "2026-08-01" } },
       { id: "tr-carburante", pool: true, label: "Carburante · ~1.500 km", day: "—", plan: 350, booked: false },
       { id: "tr-melbu", label: "Traghetto Melbu–Fiskebøl", day: "16 ago", plan: 30, booked: false },
