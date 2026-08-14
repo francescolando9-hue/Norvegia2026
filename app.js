@@ -274,9 +274,12 @@ const App = (() => {
   }
 
   /* ---------- service worker + aggiornamenti -------------- */
+  let swReg = null;
+
   function registerSW() {
     if (!("serviceWorker" in navigator) || !location.protocol.startsWith("http")) return;
     navigator.serviceWorker.register("sw.js").then(reg => {
+      swReg = reg;
       if (reg.waiting) showUpdate(reg);
       reg.addEventListener("updatefound", () => {
         const sw = reg.installing;
@@ -286,6 +289,65 @@ const App = (() => {
         });
       });
     }).catch(() => {});
+  }
+
+  /* ---------- installazione ------------------------------
+     Chrome offre l'evento beforeinstallprompt e possiamo aprire
+     la finestra di installazione. Safari su iOS no: lì l'unica
+     via è "Aggiungi alla schermata Home" dal menu Condividi, e
+     tanto vale spiegarlo invece di far finta.
+     ------------------------------------------------------ */
+  let installEvent = null;
+  window.addEventListener("beforeinstallprompt", e => {
+    e.preventDefault();
+    installEvent = e;
+  });
+
+  const isInstalled = () =>
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+
+  async function install() {
+    if (installEvent) {
+      installEvent.prompt();
+      const res = await installEvent.userChoice.catch(() => null);
+      installEvent = null;
+      UI.toast(res && res.outcome === "accepted" ? "Installata" : "Installazione annullata");
+      return;
+    }
+    // niente evento: istruzioni per il browser in uso
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    UI.sheet("Installa l'app", (body, done) => {
+      body.innerHTML = `
+        <p class="fld__h" style="font-size:13.4px;line-height:1.5">${ios
+          ? "Su iPhone tocca il pulsante <b>Condividi</b> nella barra di Safari, scorri e scegli <b>Aggiungi alla schermata Home</b>. L'app parte a schermo pieno e funziona senza rete."
+          : "Nel menu del browser (i tre puntini) cerca <b>Installa app</b> oppure <b>Aggiungi alla schermata Home</b>. L'app parte a schermo pieno e funziona senza rete."}</p>
+        <p class="fld__h">${isInstalled()
+          ? "Da questa finestra risulta già installata: la stai usando a schermo pieno."
+          : "Una volta installata questo pulsante sparisce."}</p>
+        ${UI.actions(null, "Chiudi")}`;
+      $('[data-act="cancel"]', body).onclick = done;
+    });
+  }
+
+  /* ---------- controllo aggiornamenti a richiesta --------- */
+  async function checkUpdate() {
+    if (!("serviceWorker" in navigator) || !swReg) {
+      UI.toast("Aggiornamenti non disponibili qui");
+      return;
+    }
+    if (!navigator.onLine) { UI.toast("Serve una connessione"); return; }
+    UI.toast("Controllo in corso…");
+    try {
+      await swReg.update();
+      // qualche istante perché lo stato del service worker si assesti
+      await new Promise(r => setTimeout(r, 1200));
+      if (swReg.waiting) { showUpdate(swReg); UI.toast("Aggiornamento trovato"); }
+      else UI.toast("Sei già all'ultima versione (" + TRIP.meta.version + ")");
+    } catch {
+      UI.toast("Controllo non riuscito");
+    }
   }
 
   function showUpdate(reg) {
@@ -301,7 +363,8 @@ const App = (() => {
     requestAnimationFrame(() => bar.classList.add("on"));
   }
 
-  return { go, render, boot, VIEWS, markInView, centerChip };
+  return { go, render, boot, VIEWS, markInView, centerChip,
+           install, checkUpdate, isInstalled, get installable() { return !!installEvent; } };
 })();
 
 document.addEventListener("DOMContentLoaded", App.boot);

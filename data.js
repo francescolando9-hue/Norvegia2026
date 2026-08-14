@@ -15,7 +15,7 @@ const TRIP = {
     from: "2026-08-12",
     to: "2026-08-22",
     people: 2,
-    version: "v9.8",
+    version: "v10.0",
     source: "ItinerarioVacanzaNorvegia20260811v6.xlsx",
     fxDefault: 10.95,
     fxNote: "Cambio EUR/NOK indicativo all'11 agosto 2026 (~10,95). Cambialo e tutti gli importi in corone si riconvertono."
@@ -105,7 +105,11 @@ const TRIP = {
         { t: "12:00", title: "Partenza da Husøy — limite", kind: "drive", status: "info",
           meta: ["Mefjordvær → Finnsnes (PIENO) → E6 → Fossbakken → E10 → Gullesfjordbotn → Sortland"] },
         { t: "17:15", title: "Arrivo a Sortland · check-in e cena veloce", kind: "stop", status: "info",
-          meta: ["Mangia PRIMA del safari: finisce alle 21:45"] },
+          meta: [
+            "Mangia PRIMA del safari: finisce alle 21:45",
+            "Sortland ospita la partenza della tappa 4 del 16: in paese ci sono squadre, staff e pubblico",
+            "Ristoranti pieni: se non hai un tavolo, risolvi al supermercato invece di rischiare"
+          ] },
         { t: "18:45", title: "Safari alci · Vesterålen Tours", kind: "activity", status: "booked", bill: "e-alci",
           code: "GYG7VKQ52NV4", hasPin: true,
           at: "marina",
@@ -172,6 +176,7 @@ const TRIP = {
         meta: ["Storgata 53, 8480 Andenes, Norvegia", "Prenotazione Booking 5814498621", "Pagato l'11 ago 2026 · NOK 3.245", "Una notte sola: il 16 si scende verso le Lofoten"],
         at: "andrikken" },
       notes: [
+        "Arctic Race: oggi la tappa 3 passa da Sortland alle 15:01 e gira a nord-ovest fino alle 16:10. Tu parti verso nord alle 09:30, cinque ore prima e in direzione opposta: nessuna interferenza.",
         "Il buco della notte del 15 è chiuso: era il primo rimasto nel viaggio.",
         "Le due opzioni di mezzogiorno sono entrambe facoltative. Con check-in balene alle 15:15 la finestra è stretta."
       ]
@@ -182,29 +187,48 @@ const TRIP = {
       arc: "Andenes → Svolvær", region: "Lofoten est",
       lat: 68.2342, lon: 14.5681, wxPlace: "Svolvær",
       drive: "3h", km: "~200 km + traghetto",
-      headline: "Giornata volutamente leggera. Traghetto e Trollfjord in silenzio.",
+      headline: "Traghetto al mattino, poi il Trollfjord in silenzio alle 18:00.",
       fixed: [
-        { t: "09:30", title: "Partenza da Andenes", kind: "drive", status: "info",
-          meta: ["Andenes → Sortland → Melbu, ~2h15"] },
+        { t: "09:00", title: "Partenza da Andenes — non più tardi", kind: "drive", status: "info",
+          meta: [
+            "Andenes → Sortland → Melbu, ~2h15",
+            "ARCTIC RACE: oggi la tappa 4 parte da Sortland e il Sortlandbrua chiude verso le 13:00",
+            "Passando da Sortland entro le 11:30 sei fuori dalla finestra di chiusura",
+            "Non ci sono alternative al ponte: è l'unico collegamento fra Hinnøya e Langøya"
+          ] },
         { t: "12:00", title: "Traghetto Melbu → Fiskebøl", kind: "ferry", status: "verify", bill: "tr-melbu",
-          meta: ["25 min, corse frequenti, ~30 min di anticipo bastano", "NON si prenota: si paga con AutoPASS (lettura targa)", "DA VERIFICARE: orari della domenica 16/8"],
+          meta: [
+            "25 min, corse frequenti, ~30 min di anticipo bastano",
+            "NON si prenota: si paga con AutoPASS (lettura targa)",
+            "DA VERIFICARE: orari della domenica 16/8",
+            "Se la corsa ti ha rallentato a Sortland, qui recuperi: le corse sono ravvicinate e la crociera è alle 18:00"
+          ],
           at: "melbu" },
         { t: "13:45", title: "Arrivo a Svolvær", kind: "stop", status: "info",
           meta: ["Pomeriggio libero: check-in, porto, Svolværgeita dal basso"] },
-        { t: "20:00", title: "Crociera silenziosa Trollfjord + aquile", kind: "activity", status: "todo", at: "svolvaer", bill: "e-trollfjord", sea: true,
+        { t: "18:00", title: "Crociera silenziosa Trollfjord + aquile", kind: "activity", status: "booked",
+          at: "svolvaer", bill: "e-trollfjord", sea: true,
+          code: "GYG2Q9FAYL2B",
           meta: [
-            "Brim Explorer, catamarano ibrido-elettrico, senza esche",
-            "Il 16/8 è l'ultimo giorno con 3 corse: dal 17 sono 2/giorno",
-            "VERIFICA che la partenza serale operi il 16/8/2026",
-            "Piano B: mattina del 17, ma quel giorno è pieno → meglio spostare il cavallo che il Trollfjord"
+            "Brim Explorer · catamarano ibrido-elettrico, senza esche · in inglese",
+            "3,5 ore: rientro verso le 21:30 · 2 adulti",
+            "Partenza dal porto di Svolvær: il pontile esatto è sul biglietto GetYourGuide",
+            "Dal Svinøya Rorbuer al porto sono pochi minuti"
           ] }
       ],
       flex: [
         { title: "Hurtigrutemuseet, Stokmarknes", bill: "e-museo", meta: "MS Finnmarken del 1956 dentro un edificio di vetro e acciaio. 10:00–17:00, ~190 NOK, 1h30, a 5 min dalla strada. Miglior piano B se piove.", optional: true }
       ],
-      stay: { t: "14:00", name: "Rorbu a Svolvær o Henningsvær", status: "todo", place: "Lofoten est",
-        meta: ["DA PRENOTARE — alta stagione"] },
+      stay: { t: "14:00", name: "Svinøya Rorbuer", status: "booked", place: "Svolvær",
+        at: "svinoya",
+        meta: [
+          "Gunnar Bergs vei 2, 8300 Svolvær · valutazione 9,1",
+          "273 € · check-in dom 16, check-out lun 17",
+          "Parcheggio gratuito, ristorante e spa in struttura",
+          "Sull'isolotto di Svinøya, a pochi minuti dal porto da cui parte il Trollfjord"
+        ] },
       notes: [
+        "Arctic Race, tappa 4: partenza da Sortland alle 13:25, Sortlandbrua alle 13:31, poi Fv85 verso Sigerfjord. Il centro di Sortland è occupato dal villaggio di partenza già dalla mattina. Passando entro le 11:30 non incroci nulla.",
         "La zona fra Andenes e le Lofoten è povera: l'Hurtigrutemuseet è l'unica sosta programmabile. Nyksund e Stø sono splendidi ma a 1h15 di deviazione da Sortland: non entrano in una giornata che finisce col Trollfjord alle 20:00.",
         "Giornata leggera per scelta, dopo due sere lunghe di fila."
       ]
@@ -233,7 +257,15 @@ const TRIP = {
         { t: "14:00", title: "Haukland e Uttakleiv", kind: "stop", status: "free",
           meta: ["~45 min da Hov", "Sentiero costiero ~45 min tra le due spiagge", "Bagno se c'è sole: 15–17°C, nessun bagnino, entra gradualmente"],
           at: "haukland" },
-        { t: "17:00", title: "Haukland → Moskenes", kind: "drive", status: "info", meta: ["~1h20"] }
+        { t: "17:00", title: "Haukland → Moskenes", kind: "drive", status: "info", meta: ["~1h20"] },
+        { t: "19:30", title: "Kayak dal Cozy Tipi", kind: "activity", status: "free", bill: "e-kayak", sea: true,
+          at: "moskenes",
+          meta: [
+            "Messo a disposizione dalla struttura: niente da prenotare e niente da pagare",
+            "Ad agosto alle 19:30 c'è ancora luce piena: la finestra regge",
+            "Dipende da vento e mare: è la prima cosa che salta se la giornata è andata lunga",
+            "Sostituisce il kayak guidato a Reine che era previsto il 18"
+          ] }
       ],
       flex: [],
       stay: { t: "18:30", name: "Cozy Tipi — The LOWFO House Lofoten", status: "booked", place: "Moskenes",
@@ -250,7 +282,7 @@ const TRIP = {
       arc: "Moskenes → Reine → Ballstad", region: "Lofoten ovest",
       lat: 68.0736, lon: 13.5344, wxPlace: "Ballstad",
       drive: "1h30", km: "~70 km",
-      headline: "Reinebringen all'alba, check-out secco alle 11:00, kayak al pomeriggio.",
+      headline: "Reinebringen all'alba e check-out secco alle 11:00. Pomeriggio sui villaggi.",
       fixed: [
         { t: "06:30", title: "Reinebringen", kind: "trek", status: "free",
           meta: [
@@ -262,12 +294,6 @@ const TRIP = {
         { t: "11:00", title: "Check-out dal tipi — vincolo secco", kind: "stay", status: "info", meta: [] },
         { t: "11:30", title: "Hamnøy · Sakrisøy · Reine · Å", kind: "stop", status: "free",
           meta: ["5–15 min tra i villaggi", "Å è la fine della E10"] },
-        { t: "14:30", title: "Kayak guidato nel Reinefjorden", kind: "activity", status: "todo", at: "paddling", bill: "e-kayak", sea: true,
-          meta: [
-            "Reine Paddling (Eco-Lighthouse), piccoli gruppi, kayak doppi, ~3h",
-            "CHIEDI LO SLOT DEL POMERIGGIO: la mattina è del Reinebringen",
-            "Scelto Reine perché il fjord è chiuso fra montagne alte: è l'opzione col meteo più affidabile"
-          ] },
         { t: "18:00", title: "Reine → Ballstad", kind: "drive", status: "info", meta: ["~45 min"] }
       ],
       flex: [],
@@ -281,7 +307,10 @@ const TRIP = {
           "Sostituisce Eliassen Rorbuer (Hamnøy)"
         ],
         at: "kraem" },
-      notes: ["Il vincolo della giornata è il check-out entro le 11:00: Reinebringen 6:30–9:30, bagagli, poi villaggi e kayak."]
+      notes: [
+        "Il vincolo della giornata è il check-out entro le 11:00: Reinebringen 6:30–9:30, bagagli, poi i villaggi con calma.",
+        "Il kayak è passato al 17, offerto dal Cozy Tipi: qui si è liberato il pomeriggio."
+      ]
     },
 
     {
@@ -420,19 +449,10 @@ const TRIP = {
     { id: "t-oslo", pri: 1, label: "Nome e indirizzo di alloggio e cena a Oslo",
       why: "Prenotati ma non annotati da nessuna parte. Ti servono stasera.",
       how: "Cerca le conferme Booking e il messaggio di tuo padre", when: "oggi" },
-    { id: "t-notte16", pri: 2, label: "Notte 16/8 — Svolvær o Henningsvær",
-      why: "Rorbu in alta stagione: sparisce.", how: "Booking · ~250 € stimati", when: "entro 14/8" },
-    { id: "t-trollfjord", pri: 2, label: "Crociera Trollfjord del 16/8 sera",
-      why: "Il 16 è l'ultimo giorno con 3 corse. Verifica che la serale operi, poi prenota.",
-      how: "brimexplorer.com · ~280 €", when: "entro 14/8",
-      url: "https://brimexplorer.com/tours/silent-trollfjord-cruise" },
     { id: "t-cavallo", pri: 2, label: "Tour a cavallo Hov Gård del 17/8",
       why: "Servono nome, peso, altezza, età e livello in inglese. Limite 95 kg.",
       how: "hovgard.no · +47 97 55 95 01 · confronta col prezzo GetYourGuide", when: "entro 15/8",
       tel: "+4797559501", url: "https://hovgard.no" },
-    { id: "t-kayak", pri: 2, label: "Kayak Reine Paddling del 18/8 — slot pomeriggio",
-      why: "La mattina è del Reinebringen.", how: "reinepaddling.trekksoft.com · ~240 €", when: "entro 16/8",
-      url: "https://reinepaddling.trekksoft.com/en" },
     { id: "t-traghetto", pri: 2, label: "Posto auto traghetto Moskenes → Bodø del 21/8",
       why: "Solo il 50% della capienza è prenotabile e in alta stagione va esaurito.",
       how: "torghatten.no linea 18-782 · +250 NOK", when: "entro 16/8",
@@ -522,7 +542,8 @@ const TRIP = {
       { id: "a-sortland", label: "Marina Hotel Sortland", day: "14 ago", plan: 180, booked: true },
       { id: "a-andrikken", label: "Thon Hotel Andrikken, Andenes", day: "15 ago", plan: 180, booked: true,
         seed: { nok: 3245, date: "2026-08-11" }, note: "Pagato l'11 ago · Booking 5814498621" },
-      { id: "a-svolvaer", label: "Rorbu a Svolvær / Henningsvær", day: "16 ago", plan: 250, booked: false },
+      { id: "a-svolvaer", label: "Svinøya Rorbuer, Svolvær", day: "16 ago", plan: 250, booked: true,
+        seed: { eur: 273, date: "2026-08-13" }, note: "23 € sopra il preventivo" },
       { id: "a-tipi", label: "Cozy Tipi, Moskenes", day: "17 ago", plan: 230, booked: true },
       { id: "a-kraem", label: "Kræmmervika Havn, Ballstad", day: "18 ago", plan: 320, booked: true,
         seed: { eur: 169.33, date: "2026-07-26" }, note: "Pagato il 26 lug · 151 € sotto il preventivo" },
@@ -534,9 +555,11 @@ const TRIP = {
     { id: "esperienze", section: "Esperienze", lines: [
       { id: "e-alci", label: "Safari alci · Sortland", day: "14 ago", plan: 250, booked: true },
       { id: "e-balene", label: "Safari balene · Andenes", day: "15 ago", plan: 260, booked: true },
-      { id: "e-trollfjord", label: "Crociera Trollfjord · Brim Explorer", day: "16 ago", plan: 280, booked: false },
+      { id: "e-trollfjord", label: "Crociera Trollfjord · Brim Explorer", day: "16 ago", plan: 280, booked: true,
+        seed: { eur: 245, date: "2026-08-13" }, note: "35 € sotto il preventivo" },
       { id: "e-cavallo", label: "Tour a cavallo · Hov Gård", day: "17 ago", plan: 278, booked: false, note: "139 €/pers su GYG; sul sito diretto 1.490 NOK/pers per 4h con pranzo" },
-      { id: "e-kayak", label: "Kayak · Reine Paddling", day: "18 ago", plan: 240, booked: false },
+      { id: "e-kayak", label: "Kayak · incluso dal Cozy Tipi", day: "17 ago", plan: 0, booked: true,
+        note: "Lo mette a disposizione la struttura: 240 € di preventivo che non spendi" },
       { id: "e-foche", label: "Snorkeling foche · Henningsvær", day: "20 ago", plan: 320, booked: true, note: "Biglietto non ancora emesso" },
       { id: "e-bleiksoya", label: "Safari fauna Bleiksøya", day: "15 ago", plan: 100, booked: false, optional: true },
       { id: "e-museo", label: "Hurtigrutemuseet, Stokmarknes", day: "16 ago", plan: 32, booked: false, optional: true }
@@ -666,6 +689,8 @@ const TRIP = {
   ],
 
   links: [
+    { label: "Arctic Race of Norway · chiusure stradali", url: "https://www.arctic-race-of-norway.com/en/stage-4" },
+    { label: "Vegvesen · traffico in tempo reale", url: "https://www.vegvesen.no/trafikk/" },
     { label: "Norwegian · voli", url: "https://www.norwegian.com" },
     { label: "Vesterålen Tours · alci", url: "https://www.vtours.no" },
     { label: "Arctic Whale Tours · balene Andenes", url: "https://www.arcticwhaletours.com/whale-safari-andenes" },
@@ -749,6 +774,11 @@ TRIP.docs = [
    un'attività, l'avviso sparisce da solo.
    ============================================================ */
 TRIP.checks = [
+  { id: "arn-sortland", day: "G5", level: "alto",
+    title: "Arctic Race: il 16 chiudono il ponte di Sortland",
+    body: "La tappa 4 parte da Sortland e attraversa il Sortlandbrua alle 13:31. È l'unico collegamento fra Hinnøya e Langøya: il tuo percorso ci passa per forza. Parti da Andenes entro le 09:00 e sei oltre Sortland verso le 11:00, prima delle chiusure. Se resti bloccato riparti verso le 14:00: il Trollfjord delle 18:00 si salva comunque.",
+    action: null },
+
   { id: "foche-stagione", day: "G9", level: "alto",
     title: "Snorkeling foche fuori dalla stagione pubblicata",
     body: "Il biglietto non è stato emesso e la stagione dichiarata dall'operatore è 10/6–15/8. Il 20/8 è fuori finestra.",
@@ -757,11 +787,6 @@ TRIP.checks = [
   { id: "checkout-reinebringen", day: "G7", level: "medio",
     title: "Reinebringen contro il check-out delle 11:00",
     body: "Salita e discesa sono 1h30–2h. Partendo alle 6:30 rientri verso le 9:30: restano 90 minuti per bagagli e colazione. Se parti più tardi, il margine si mangia.",
-    action: null },
-
-  { id: "trollfjord-corse", day: "G5", level: "medio",
-    title: "Trollfjord: il 16 è l'ultimo giorno con tre corse",
-    body: "Dal 17 agosto le partenze scendono a due al giorno. Se la serale del 16 non opera, l'alternativa cade in una giornata già piena.",
     action: null },
 
   { id: "sixt-carta", day: "G2", level: "alto",
@@ -825,6 +850,8 @@ TRIP.places = {
                 note: "Container nero al porto, accanto agli edifici rossi" },
   melbu:      { name: "Melbu ferjekai", addr: "Melbu, Norvegia", lat: 68.4987, lon: 14.8010 },
   svolvaer:   { name: "Svolvær", addr: "Svolvær, Lofoten", lat: 68.2340, lon: 14.5680 },
+  svinoya:    { name: "Svinøya Rorbuer", addr: "Gunnar Bergs vei 2, 8300 Svolvær",
+                lat: 68.2355, lon: 14.5745, note: "Parcheggio gratuito, ristorante, spa" },
   hov:        { name: "Hov Gård", addr: "Tore Hjortsvei 471, 8314 Gimsøysand",
                 tel: "+47 97 55 95 01", lat: 68.3382, lon: 14.1104,
                 note: "Il caffè della fattoria apre tardi rispetto alle uscite del mattino" },

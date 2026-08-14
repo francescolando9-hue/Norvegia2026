@@ -1458,6 +1458,14 @@ const Views = (() => {
         <button class="btn btn--go" data-a="ics">${ICON.cal}<span>Aggiungi al calendario</span></button>
       </div>
       <div class="btnrow" style="margin-top:8px">
+        <button class="btn btn--ghost" data-a="install">${ICON.down}<span>Installa l'app</span></button>
+        <button class="btn btn--ghost" data-a="upd">${ICON.refresh}<span>Aggiornamenti</span></button>
+      </div>
+      <p class="bline__note" style="margin:9px 0 11px">
+        <b>Installa</b> mette l'icona sulla schermata Home: parte a schermo pieno, senza la barra
+        del browser, e funziona senza rete. <b>Aggiornamenti</b> controlla subito se c'è una
+        versione nuova invece di aspettare il prossimo avvio.</p>
+      <div class="btnrow" style="margin-top:8px">
         <button class="btn btn--ghost" data-a="share">${Extra.ICON2.share}<span>Condividi</span></button>
         <button class="btn btn--ghost" data-a="print">${Extra.ICON2.print}<span>Stampa o PDF</span></button>
       </div>
@@ -1473,6 +1481,13 @@ const Views = (() => {
         <label class="btn btn--ghost">${ICON.up}<span>Importa</span><input type="file" accept="application/json" hidden data-a="imp"></label>
         <button class="btn btn--ghost btn--danger" data-a="res">${ICON.trash}<span>Azzera</span></button>
       </div>`;
+    const ib = $('[data-a="install"]', dc);
+    if (App.isInstalled()) {
+      ib.disabled = true;
+      ib.innerHTML = `${ICON.check}<span>Già installata</span>`;
+    }
+    ib.onclick = () => { buzz(); App.install(); };
+    $('[data-a="upd"]', dc).onclick = () => { buzz(); App.checkUpdate(); };
     $('[data-a="share"]', dc).onclick = () => Extra.shareTrip();
     $('[data-a="print"]', dc).onclick = () => {
       document.body.classList.add("printing");

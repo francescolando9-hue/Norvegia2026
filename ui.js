@@ -60,6 +60,7 @@ const UI = (() => {
     bed:   '<svg viewBox="0 0 24 24"><path d="M2 18v-5h20v5M2 18v2M22 18v2M4 13V8h6v5M14 11h6a2 2 0 0 1 2 2"/></svg>',
     caret: '<svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
     ext:   '<svg viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></svg>',
+    refresh:'<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>',
     search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4.5-4.5"/></svg>',
     close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
     plus:  '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',

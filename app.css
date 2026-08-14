@@ -1282,3 +1282,6 @@ input,textarea,select{font-size:16px}   /* sotto i 16px iOS zooma da solo */
   flex:0 0 auto;font-family:var(--f-mono);font-size:13px;
   font-variant-numeric:tabular-nums;
 }
+
+/* pulsante disabilitato: l'app è già installata */
+.btn:disabled{opacity:.45;pointer-events:none}

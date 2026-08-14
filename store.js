@@ -78,6 +78,15 @@ const Store = (() => {
     catch (e) { memoryOnly = true; }
   }
 
+  /* data di oggi in formato ISO, calcolata sul fuso locale.
+     Serve qui dentro: store.js viene caricato prima di ui.js. */
+  function todayISO() {
+    const n = new Date();
+    return n.getFullYear() + "-" +
+      String(n.getMonth() + 1).padStart(2, "0") + "-" +
+      String(n.getDate()).padStart(2, "0");
+  }
+
   const slug = t => String(t).toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 28);
@@ -126,15 +135,23 @@ const Store = (() => {
      -------------------------------------------------------- */
   function checks() {
     const out = [];
+    /* Gli avvisi dei giorni già passati non servono più: a metà
+       viaggio la carta di credito per Sixt è storia, non un
+       promemoria. Restano solo oggi e i giorni a venire. */
+    const oggi = todayISO();
+    const passato = id => {
+      const d = TRIP.days.find(x => x.id === id);
+      return d && d.date < oggi;
+    };
 
     // avvisi dichiarati nei dati, ancora pertinenti
     TRIP.checks.forEach(c => {
-      if (S.checkOff[c.id]) return;
+      if (S.checkOff[c.id] || passato(c.day)) return;
       out.push(Object.assign({ kind: "fisso" }, c));
     });
 
     // notti ancora aperte: calcolato, non dichiarato
-    const aperte = days().filter(d => d.stay && d.stay.status === "todo");
+    const aperte = days().filter(d => d.stay && d.stay.status === "todo" && d.date >= oggi);
     aperte.forEach(d => out.push({
       id: "notte-" + d.id, kind: "calcolato", day: d.id,
       level: aperte.length > 2 ? "alto" : "medio",
@@ -144,7 +161,7 @@ const Store = (() => {
     }));
 
     // attività da prenotare con una data ravvicinata
-    days().forEach(d => d.fixed.filter(f => f.status === "todo").forEach(f => out.push({
+    days().filter(d => d.date >= oggi).forEach(d => d.fixed.filter(f => f.status === "todo").forEach(f => out.push({
       id: "att-" + d.id + "-" + slug(f.title), kind: "calcolato", day: d.id,
       level: "medio",
       title: f.title + " non è prenotata",
