@@ -14,7 +14,9 @@ const Views = (() => {
   const HOT = /^⚠|DA VERIFICARE|VERIFICA |CHIAMA|NON ANCORA|NON EMESSO|NON CHIUSO|— limite|PIENO|LIMITE/;
 
   let rerender = () => {};
-  const bind = fn => { rerender = fn; };
+  // dopo ogni modifica si ridipinge anche la giornata a schermo
+  // pieno, se è aperta: prima restava indietro rispetto ai dati
+  const bind = fn => { rerender = () => { fn(); if (Extra.refreshDay) Extra.refreshDay(); }; };
 
   /* ========================================================
      stato di un giorno
@@ -101,7 +103,7 @@ const Views = (() => {
       body.innerHTML = `
         ${field("Importo", `<div class="cur">
             <input class="in in--big" id="ex-amt" type="number" inputmode="decimal" step="0.01" min="0"
-                   value="${e.amount != null ? e.amount : ""}" placeholder="0">
+                   value="${e.amount != null ? e.amount : (prefill.amount != null ? prefill.amount : "")}" placeholder="0">
             <div class="seg seg--cur" id="ex-cur">
               <button data-v="EUR" class="${cur === "EUR" ? "on" : ""}">EUR</button>
               <button data-v="NOK" class="${cur === "NOK" ? "on" : ""}">NOK</button>
@@ -112,7 +114,7 @@ const Views = (() => {
         ${field("Tappa", `<select class="in" id="ex-stop">${stopOptions(selStop)}</select>`,
                 "Collegandola a una tappa il costo compare dentro quella tappa. Altrimenti conta fra gli extra della giornata.")}
         ${field("Nota", `<input class="in" id="ex-note" type="text" maxlength="80"
-                 value="${esc(e.note || "")}" placeholder="Benzina a Finnsnes">`)}
+                 value="${esc(e.note || prefill.note || "")}" placeholder="Benzina a Finnsnes">`)}
         <div class="conv" id="ex-conv"></div>
         ${actions(existing ? "Salva" : "Aggiungi", existing ? "Elimina" : "Annulla")}`;
 
@@ -145,6 +147,7 @@ const Views = (() => {
           cat: $("#ex-cat", body).value,
           stop: $("#ex-stop", body).value || null
         };
+        if (!existing && prefill.ok) rec.ok = true;
         if (existing) Store.updateExpense(existing.id, rec);
         else Store.addExpense(rec);
         buzz(); done(); rerender();
@@ -215,6 +218,20 @@ const Views = (() => {
                  placeholder="Una riga per nota">${esc((v.meta || []).join("\n"))}</textarea>`)}
         ${actions(nuovo ? "Aggiungi" : "Salva", "Annulla")}`;
 
+      // un alloggio merita l'editor completo: luogo, indirizzo,
+      // check-in, pagamento. Si passa di là senza perdere il testo.
+      if (nuovo) {
+        $("#sp-kind", body).addEventListener("change", e => {
+          if (e.target.value !== "stay") return;
+          const draft = {
+            title: $("#sp-title", body).value.trim(),
+            t: $("#sp-t", body).value || "17:00"
+          };
+          done();
+          staySheet(d, null, { create: true, draft });
+        });
+      }
+
       if (!nuovo) {
         const del = el("button", "btn btn--danger btn--full");
         del.style.marginTop = "10px";
@@ -240,6 +257,14 @@ const Views = (() => {
           meta: $("#sp-meta", body).value.split("\n").map(x => x.trim()).filter(Boolean)
         };
         if (patch.costo == null) delete patch.costo;
+        if (nuovo && patch.kind === "stay") {
+          done();
+          staySheet(d, null, { create: true, draft: {
+            title: patch.title, t: patch.t, status: patch.status,
+            costo: patch.costo, meta: patch.meta
+          } });
+          return;
+        }
         if (nuovo) Store.addStop(d.id, patch);
         else Store.patchStop(ref, patch);
         buzz(); done(); rerender();
@@ -394,8 +419,10 @@ const Views = (() => {
           : `domani ${next.t}`;
         rows.push(["Prossimo", `<b>${esc(next.title)}</b><small>${esc(when)}</small>`]);
       }
-      if (d.stay) {
-        rows.push(["Stanotte", `<b class="${d.stay.status === "todo" ? "now__alert" : ""}">${esc(d.stay.name)}</b><small>${esc(d.stay.place)}${d.stay.status === "todo" ? " · ancora da prenotare" : ""}</small>`]);
+      const sn = d.stay || (f => f ? { name: f.title, place: f.place || "", status: f.status } : null)(
+        d.fixed.find(f => f._custom && f.kind === "stay"));
+      if (sn) {
+        rows.push(["Stanotte", `<b class="${sn.status === "todo" ? "now__alert" : ""}">${esc(sn.name)}</b><small>${esc(sn.place)}${sn.status === "todo" ? " · ancora da prenotare" : ""}</small>`]);
       }
       const w = Weather.forDay(d.id);
       if (w) {
@@ -538,8 +565,9 @@ const Views = (() => {
 
   function placeOf(x) { return x && x.at ? TRIP.places[x.at] : null; }
   function addrOf(x) {
+    if (x && x.map) return x.map;   // indirizzo scritto a mano: vince sul catalogo
     const pl = placeOf(x);
-    return pl ? (pl.addr || pl.name) : (x && x.map) || null;
+    return pl ? (pl.addr || pl.name) : null;
   }
 
   /* ---------- collegamento fra due tappe ------------------- */
@@ -584,46 +612,129 @@ const Views = (() => {
      preventivato come attività. Qui li vedi, li correggi e li
      cancelli, senza passare dal registro generale.
      ======================================================== */
-  function extraSheet(d) {
-    sheet("Extra · " + d.dow + " " + d.dateLabel, (body, done) => {
-      body.innerHTML = `<div id="ex-list"></div>
-        <button class="btn btn--go btn--full" id="ex-add">${ICON.plus}<span>Aggiungi una spesa</span></button>
-        <p class="fld__h">Extra sono le spese senza un preventivo proprio: cibo, carburante,
-        pedaggi, imprevisti. Il costo delle attività già in programma si registra dalla tappa.</p>`;
+  /* Le spese di una giornata, tutte in un posto: le tappe
+     previste si confermano al prezzo indicato o si correggono,
+     gli extra (cibo, benzina, traghetti, parcheggi) si aggiungono
+     dai pulsanti rapidi, e alla fine la giornata si segna come
+     verificata. */
+  const QUICK = [
+    ["Cibo", "mangiare", ""], ["Esperienza", "esperienze", ""],
+    ["Benzina", "auto", "Benzina"], ["Traghetto", "viaggio", "Traghetto"],
+    ["Parcheggio", "auto", "Parcheggio"], ["Altro", "altro", ""]
+  ];
+
+  function daySpeseSheet(d) {
+    sheet("Spese · " + d.dow + " " + d.dateLabel, (body, done) => {
+      body.innerHTML = `<div id="dsp"></div>
+        <div class="qchips" id="dsp-add"></div>
+        <p class="fld__h">Le tappe previste si confermano al prezzo indicato, o toccale per
+        correggere l'importo. Cibo, esperienze, benzina, traghetti e imprevisti si aggiungono
+        dai pulsanti: contano fra gli extra della giornata. Il cerchio a sinistra di ogni
+        spesa registrata la segna come verificata da te.</p>
+        <div id="dsp-ver"></div>`;
+
+      const add = $("#dsp-add", body);
+      QUICK.forEach(([label, cat, note]) => {
+        const b = el("button", "qchip", `${ICON.plus}<span>${label}</span>`);
+        b.onclick = () => {
+          closeSheet();
+          expenseSheet(null, { date: d.date, cat, note });
+        };
+        add.appendChild(b);
+      });
 
       function paint() {
-        const list = $("#ex-list", body);
-        const voci = Store.extrasOn(d.date);
-        if (!voci.length) {
-          list.innerHTML = `<p class="empty">Nessun extra per questa giornata.</p>`;
-          return;
+        const box = $("#dsp", body);
+        box.innerHTML = "";
+
+        const voci = Store.dayExpenses(d.date);
+        const speso = Store.daySpent(d.date);
+        const extra = Store.extraTotal(d.date);
+        const pend = Store.dayPending(d.id);
+
+        const sum = el("div", "exsum");
+        sum.innerHTML = `<span>Speso in questa giornata</span><b>${eur2(speso)}</b>`;
+        box.appendChild(sum);
+        if (extra > 0 && extra < speso) {
+          box.appendChild(el("div", "exsum exsum--sub",
+            `<span>di cui extra, fuori dalle tappe</span><b>${eur2(extra)}</b>`));
         }
-        const tot = voci.reduce((a, e) => a + Store.toEur(e), 0);
-        list.innerHTML = `<div class="exsum"><span>Totale del giorno</span><b>${eur2(tot)}</b></div>`;
+
+        if (pend.length) {
+          const h = el("div", "sect-head");
+          h.innerHTML = `<span class="eyebrow">Da confermare</span><i class="rule"></i>
+            <span class="eyebrow">${eur(pend.reduce((a, x) => a + x.costo, 0))} previsti</span>`;
+          box.appendChild(h);
+          pend.forEach(x => {
+            const row = el("div", "pend");
+            row.innerHTML = `
+              <button class="pend__b">
+                <b>${esc(x.title)}</b>
+                <small>${esc(Store.catOf(x.cat).label)} · previsto ${eur2(x.costo)} · tocca per correggere</small>
+              </button>
+              <button class="pend__go">${ICON.check}<span>${eur2(x.costo)}</span></button>`;
+            $(".pend__b", row).onclick = () => {
+              closeSheet();
+              expenseSheet(null, { stop: x.key, cat: x.cat, date: d.date, amount: x.costo, note: x.title, ok: true });
+            };
+            $(".pend__go", row).onclick = () => {
+              Store.addExpense({ amount: x.costo, cur: "EUR", date: d.date, stop: x.key, cat: x.cat, note: x.title, ok: true });
+              buzz(); paint(); rerender();
+              toast("Registrata " + eur2(x.costo) + " · " + x.title);
+            };
+            box.appendChild(row);
+          });
+        }
+
+        const okN = voci.filter(e => e.ok).length;
+        const h2 = el("div", "sect-head");
+        h2.innerHTML = `<span class="eyebrow">Registrate</span><i class="rule"></i>
+          <span class="eyebrow">${voci.length ? okN + "/" + voci.length + " verificate" : "nessuna"}</span>`;
+        box.appendChild(h2);
+        if (!voci.length) {
+          box.appendChild(el("p", "empty", "Nessuna spesa registrata in questa giornata."));
+        }
         voci.forEach(e => {
-          const lo = { line: { label: Store.catOf(e.cat).label } };
-          const row = el("div", "exrow");
+          const st = e.stop ? Store.stopsWithCost().find(x => x.key === e.stop) : null;
+          const row = el("div", "exrow" + (e.ok ? " exrow--ok" : ""));
           row.innerHTML = `
+            <button class="exrow__ok" aria-label="${e.ok ? "Verificata · tocca per riaprire" : "Segna come verificata"}">${ICON.check}</button>
             <button class="exrow__b">
-              <b>${esc(e.note || (lo ? lo.line.label : "Spesa"))}</b>
-              <span>${esc(lo ? lo.line.label : "fuori piano")}</span>
+              <b>${esc(e.note || (st ? (st.f.title || st.f.name) : Store.catOf(e.cat).label))}</b>
+              <span>${esc(Store.catOf(e.cat).label)}${e.stop ? "" : ' · <i class="opt">extra</i>'}</span>
             </button>
             <span class="exrow__v">${e.cur === "NOK" ? nok(e.amount) : eur2(e.amount)}
               ${e.cur === "NOK" ? `<em>${eur2(Store.toEur(e))}</em>` : ""}</span>
             <button class="exrow__x" aria-label="Elimina">${ICON.trash}</button>`;
+          $(".exrow__ok", row).onclick = () => {
+            Store.updateExpense(e.id, { ok: !e.ok }); buzz(); paint(); rerender();
+          };
           $(".exrow__b", row).onclick = () => { closeSheet(); expenseSheet(e); };
           $(".exrow__x", row).onclick = () => {
             Store.removeExpense(e.id); buzz(); paint(); rerender(); toast("Spesa eliminata");
           };
-          list.appendChild(row);
+          box.appendChild(row);
         });
+
+        const ver = $("#dsp-ver", body);
+        ver.innerHTML = "";
+        const ok = !!S.dayOk[d.id];
+        const vb = el("button", "btn btn--full " + (ok ? "btn--ghost vday--ok" : "btn--go"));
+        vb.innerHTML = `${ICON.check}<span>${ok ? "Giornata verificata · tocca per riaprire" : "Segna la giornata come verificata"}</span>`;
+        vb.onclick = () => {
+          Store.setDayOk(d.id, !ok); buzz(); paint(); rerender();
+          if (ok) { toast("Giornata riaperta"); return; }
+          const pendN = Store.dayPending(d.id).length;
+          const daSp = Store.dayExpenses(d.date).filter(e => !e.ok).length;
+          const resta = [
+            pendN ? (pendN === 1 ? "1 tappa da confermare" : pendN + " tappe da confermare") : "",
+            daSp ? (daSp === 1 ? "1 spesa senza spunta" : daSp + " spese senza spunta") : ""
+          ].filter(Boolean).join(", ");
+          toast(resta ? "Verificata · ancora: " + resta : "Giornata verificata");
+        };
+        ver.appendChild(vb);
       }
       paint();
-
-      $("#ex-add", body).onclick = () => {
-        closeSheet();
-        expenseSheet(null, { date: d.date, extra: true });
-      };
     }, { focus: false });
   }
 
@@ -763,7 +874,9 @@ const Views = (() => {
 
     $(".stop__edit", row).onclick = e => {
       e.stopPropagation();
-      if (f.isStay) staySheet(d); else stopSheet(d, f);
+      if (f.isStay) staySheet(d);
+      else if (f._custom && f.kind === "stay") staySheet(d, f);
+      else stopSheet(d, f);
     };
     $(".stop__hd", row).onclick = () => {
       if (openStops.has(key)) openStops.delete(key); else openStops.add(key);
@@ -804,16 +917,22 @@ const Views = (() => {
     badges.appendChild(wxChip(d));
     badges.appendChild(el("span", `day__badge day__badge--${st}`,
       st === "ok" ? "chiuso" : st === "verify" ? "verifica" : "aperto"));
+    if (d.date <= t) badges.appendChild(el("span",
+      "day__badge " + (S.dayOk[d.id] ? "day__badge--eok" : "day__badge--epend"),
+      S.dayOk[d.id] ? "€ ok" : "€ verifica"));
     $(".day__id", head).appendChild(badges);
 
     /* riga dei fatti del giorno: dove dormi e quanta luce hai */
     const facts = $(".day__facts", head);
-    if (d.stay) {
-      const bed = el("button", "bedchip" + (d.stay.status === "todo" ? " bedchip--todo" : ""));
-      const corto = d.stay.name.split(/[—·,]/)[0].trim();
+    const cstay = d.stay ? null : d.fixed.find(f => f._custom && f.kind === "stay");
+    if (d.stay || cstay) {
+      const nomeStay = d.stay ? d.stay.name : cstay.title;
+      const stStay = d.stay ? d.stay.status : cstay.status;
+      const bed = el("button", "bedchip" + (stStay === "todo" ? " bedchip--todo" : ""));
+      const corto = nomeStay.split(/[—·,]/)[0].trim();
       bed.innerHTML = `${ICON.bed}<span>${esc(corto)}</span>`;
-      bed.title = "Dormi qui: " + d.stay.name;
-      bed.onclick = e => { e.stopPropagation(); staySheet(d); };
+      bed.title = "Dormi qui: " + nomeStay;
+      bed.onclick = e => { e.stopPropagation(); staySheet(d, cstay || undefined); };
       facts.appendChild(bed);
     }
     if (w && w.sunrise && w.sunset) {
@@ -918,16 +1037,22 @@ const Views = (() => {
     /* --- azioni --- */
     const acts = el("div", "dayacts");
     const mk = (icon, label, fn) => { const b = el("button", null, `${icon}<span>${label}</span>`); b.onclick = fn; return b; };
-    // il contatore riguarda solo gli extra: se non ne hai aggiunti,
-    // il pulsante resta senza cifra
-    const extra = Store.extraTotal(d.date);
-    acts.appendChild(mk(ICON.coin, extra ? "Extra " + eur(extra) : "Altra spesa",
-      () => extra ? extraSheet(d) : expenseSheet(null, { date: d.date, extra: true })));
+    // il pulsante mostra quanto hai speso nella giornata e quante
+    // tappe previste restano da confermare
+    const speso = Store.daySpent(d.date);
+    const pend = d.date <= t ? Store.dayPending(d.id).length : 0;
+    const sb = mk(ICON.coin, speso ? "Spese " + eur(speso) : "Spese", () => daySpeseSheet(d));
+    if (pend) sb.appendChild(el("i", "ndot", String(pend)));
+    acts.appendChild(sb);
     acts.appendChild(mk(ICON.pencil, "Nota", () => textSheet(
       "Nota · " + d.dateLabel, d.userNote,
       v => { if (v.trim()) S.notes[d.id] = v.trim(); else delete S.notes[d.id]; Store.save(); },
       { multi: true, label: "Nota", ph: "Numero di casa, dove ho parcheggiato, cosa dice il gestore…" })));
     acts.appendChild(mk(ICON.plus, "Tappa", () => stopSheet(d, null)));
+    // i giorni rimasti senza pernotto (per i dati o perché l'hai tolto)
+    // lo aggiungono da qui, con l'editor completo
+    if (!d.stay && !d.fixed.some(f => f._custom && f.kind === "stay"))
+      acts.appendChild(mk(ICON.bed, "Pernotto", () => staySheet(d, null, { create: true })));
     const tolte = Store.hiddenIn(d.id);
     if (tolte) acts.appendChild(mk(ICON.refresh, "Ripristina " + tolte, () => {
       Store.restoreDay(d.id); buzz(); rerender();
@@ -1070,21 +1195,46 @@ const Views = (() => {
      contatore delle notti aperte e la card di oggi. Il prezzo
      diventa una spesa collegata alla voce di budget del giorno.
      ======================================================== */
-  function staySheet(d) {
-    const seed = TRIP.days.find(x => x.id === d.id).stay;
-    const key = d.id + "/stay";
-    const already = Store.expensesOnStop(key);
+  /* Editor completo del pernotto. Vale per il pernotto che
+     arriva dai dati (custom assente: le modifiche vanno in
+     overlay e i campi svuotati tornano all'originale) e per un
+     alloggio aggiunto da te (custom presente: si modifica e si
+     elimina davvero). */
+  function staySheet(d, custom, opts = {}) {
+    const create = !!opts.create;
+    const seed = (custom || create) ? null : TRIP.days.find(x => x.id === d.id).stay;
+    const v = custom || (create
+      ? Object.assign({ t: "17:00", status: "todo", meta: [] }, opts.draft || {})
+      : d.stay);
+    if (create && !["todo", "verify", "booked"].includes(v.status)) v.status = "todo";
+    const key = create ? null : (custom ? Store.stopKey(d.id, custom) : d.id + "/stay");
+    const already = key ? Store.expensesOnStop(key) : [];
+    const nome = () => (create || custom) ? (v.title || "") : v.name;
+    const pl = v.at && TRIP.places[v.at];
 
-    sheet("Pernotto · " + d.dateLabel, (body, done) => {
+    sheet((create ? "Aggiungi un pernotto · " : "Pernotto · ") + d.dateLabel, (body, done) => {
       body.innerHTML = `
         ${field("Struttura", `<input class="in" id="st-name" type="text" maxlength="70"
-                 value="${esc(d.stay.name)}" placeholder="Nome della struttura">`,
-                "Svuota il campo per tornare al nome originale.")}
+                 value="${esc(nome())}" placeholder="Nome della struttura">`,
+                seed ? "Svuota il campo per tornare al nome originale." : "")}
+        ${field("Luogo", `<input class="in" id="st-place" type="text" maxlength="60"
+                 value="${esc(v.place || "")}" placeholder="Ballstad">`)}
+        ${field("Indirizzo per la navigazione", `<input class="in" id="st-map" type="text" maxlength="120"
+                 value="${esc(v.map || "")}" placeholder="${esc(pl ? (pl.addr || pl.name) : "Via, numero, località")}">`,
+                pl && !v.map ? "Ora il navigatore usa l'indirizzo indicato qui sopra in grigio. Scrivine uno solo per cambiarlo." :
+                "Alimenta il pulsante «Portami qui». Va bene anche il nome esatto della struttura.")}
+        ${field("Check-in dalle", `<input class="in" id="st-t" type="time"
+                 value="${esc(/^\d\d:\d\d$/.test(v.t || "") ? v.t : "17:00")}">`)}
         ${field("Stato", `<div class="seg seg--cur" id="st-status">
-            <button data-v="todo" class="${d.stay.status === "todo" ? "on" : ""}">Da prenotare</button>
-            <button data-v="verify" class="${d.stay.status === "verify" ? "on" : ""}">Da verificare</button>
-            <button data-v="booked" class="${d.stay.status === "booked" ? "on" : ""}">Prenotato</button>
+            <button data-v="todo" class="${v.status === "todo" ? "on" : ""}">Da prenotare</button>
+            <button data-v="verify" class="${v.status === "verify" ? "on" : ""}">Da verificare</button>
+            <button data-v="booked" class="${v.status === "booked" ? "on" : ""}">Prenotato</button>
           </div>`)}
+        ${field("Costo previsto", `<input class="in" id="st-costo" type="number" inputmode="decimal"
+                 step="0.01" min="0" value="${v.costo != null ? v.costo : ""}" placeholder="nessuno">`,
+                "In euro. Entra nella proiezione del budget finché la notte non risulta pagata.")}
+        ${field("Note", `<textarea class="in in--area" id="st-meta" rows="3"
+                 placeholder="Una riga per nota">${esc((v.meta || []).join("\n"))}</textarea>`)}
         ${already.length ? "" : field("Quanto hai pagato", `<div class="cur">
             <input class="in in--big" id="st-amt" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0">
             <div class="seg seg--cur" id="st-cur">
@@ -1095,48 +1245,103 @@ const Views = (() => {
         <div class="conv" id="st-conv"></div>
         ${already.length ? `<p class="fld__h">Già registrato per questa notte: ${
             eur2(already.reduce((a, e) => a + Store.toEur(e), 0))
-          }. Per correggerlo vai in Budget → Spese.</p>` : ""}
-        ${actions("Salva", "Annulla")}`;
+          }. Lo correggi dalle spese del giorno o da Budget → Spese.</p>` : ""}
+        ${actions(create ? "Aggiungi" : "Salva", "Annulla")}`;
 
       let cur = "EUR";
       const amt = $("#st-amt", body);
       const conv = $("#st-conv", body);
-      const paint = () => {
+      const paintConv = () => {
         if (!amt) return;
-        const v = parseFloat(String(amt.value).replace(",", "."));
-        if (!v || v <= 0) { conv.textContent = ""; return; }
-        conv.textContent = cur === "NOK" ? `${nok(v)} = ${eur2(v / S.fx)}` : `${eur2(v)} = ${nok(v * S.fx)}`;
+        const n = parseFloat(String(amt.value).replace(",", "."));
+        if (!n || n <= 0) { conv.textContent = ""; return; }
+        conv.textContent = cur === "NOK" ? `${nok(n)} = ${eur2(n / S.fx)}` : `${eur2(n)} = ${nok(n * S.fx)}`;
       };
-      if (amt) amt.addEventListener("input", paint);
+      if (amt) amt.addEventListener("input", paintConv);
       $$("#st-cur button", body).forEach(b => b.onclick = () => {
         cur = b.dataset.v;
         $$("#st-cur button", body).forEach(x => x.classList.toggle("on", x === b));
-        paint();
+        paintConv();
       });
 
-      let status = d.stay.status;
+      let status = v.status;
       $$("#st-status button", body).forEach(b => b.onclick = () => {
         status = b.dataset.v;
         $$("#st-status button", body).forEach(x => x.classList.toggle("on", x === b));
       });
 
+      // il pernotto si toglie (seed) o si elimina (aggiunto da te);
+      // in creazione non c'è ancora nulla da eliminare
+      if (!create) {
+        const del = el("button", "btn btn--danger btn--full");
+        del.style.marginTop = "10px";
+        del.innerHTML = `${ICON.trash}<span>${custom ? "Elimina il pernotto" : "Togli il pernotto dalla giornata"}</span>`;
+        del.onclick = () => {
+          Store.hideStop(custom ? custom._ref : `${d.id}.stay`);
+          buzz(); done(); rerender();
+          toast(custom ? "Pernotto eliminato" : "Pernotto tolto · lo ripristini dal fondo del giorno");
+        };
+        body.appendChild(del);
+      }
+
       $('[data-act="ok"]', body).onclick = () => {
         const name = $("#st-name", body).value.trim();
-        Store.setEdit(`${d.id}.stay.name`, name || seed.name);
-        if (status !== seed.status) Store.setEdit(`${d.id}.stay.status`, status);
-        else Store.setEdit(`${d.id}.stay.status`, null);
+        const place = $("#st-place", body).value.trim();
+        const map = $("#st-map", body).value.trim();
+        const t = $("#st-t", body).value;
+        const costoRaw = $("#st-costo", body).value.trim();
+        const costo = costoRaw === "" ? null : Number(costoRaw.replace(",", "."));
+        const meta = $("#st-meta", body).value.split("\n").map(x => x.trim()).filter(Boolean);
+
+        if (create) {
+          if (!name) { toast("Serve il nome della struttura"); return; }
+          const nuovo = Store.addStop(d.id, {
+            title: name, place, map, t: t || v.t || "17:00", status,
+            costo, cat: "dormire", kind: "stay", meta
+          });
+          if (amt) {
+            const n = parseFloat(String(amt.value).replace(",", "."));
+            if (n > 0) Store.addExpense({
+              amount: n, cur, date: d.date, stop: Store.stopKey(d.id, nuovo),
+              cat: "dormire", note: name + " · notte " + d.dateLabel
+            });
+          }
+          buzz(); done(); rerender();
+          toast("Pernotto aggiunto");
+          return;
+        }
+        if (custom) {
+          if (!name) { toast("Serve il nome della struttura"); return; }
+          Store.patchStop(custom._ref, {
+            title: name, place, map, t: t || v.t, status,
+            costo, cat: "dormire", kind: "stay", meta
+          });
+        } else {
+          // in overlay: il valore uguale al seme (o vuoto) si toglie e torna all'originale
+          const set = (k, val, sv) => Store.setEdit(`${d.id}.stay.${k}`,
+            (val === "" || val == null || val === sv) ? null : val);
+          set("name", name, seed.name);
+          set("status", status, seed.status);
+          set("place", place, seed.place);
+          set("map", map, seed.map);
+          set("t", t, seed.t);
+          if (costo == null) Store.setEdit(`${d.id}.stay.costo`, null);
+          else set("costo", costo, seed.costo);
+          const stesse = meta.join("\n") === (seed.meta || []).join("\n");
+          Store.setEdit(`${d.id}.stay.meta`, stesse ? null : (meta.length ? meta : null));
+        }
 
         if (amt) {
-          const v = parseFloat(String(amt.value).replace(",", "."));
-          if (v > 0) {
+          const n = parseFloat(String(amt.value).replace(",", "."));
+          if (n > 0) {
             Store.addExpense({
-              amount: v, cur, date: d.date, stop: key, cat: "dormire",
-              note: (name || seed.name) + " · notte " + d.dateLabel
+              amount: n, cur, date: d.date, stop: key, cat: "dormire",
+              note: (name || nome()) + " · notte " + d.dateLabel
             });
           }
         }
         buzz(); done(); rerender();
-        toast(status === "booked" ? "Notte segnata come prenotata" : "Pernotto aggiornato");
+        toast(status === "booked" && v.status !== "booked" ? "Notte segnata come prenotata" : "Pernotto aggiornato");
       };
       $('[data-act="cancel"]', body).onclick = done;
     });
@@ -1329,8 +1534,9 @@ const Views = (() => {
   function expenseRow(e, afterEdit) {
     const cat = Store.catOf(e.cat);
     const st = e.stop ? Store.stopsWithCost().find(x => x.key === e.stop) : null;
-    const row = el("div", "exrow");
+    const row = el("div", "exrow" + (e.ok ? " exrow--ok" : ""));
     row.innerHTML = `
+      <button class="exrow__ok" aria-label="${e.ok ? "Verificata · tocca per riaprire" : "Segna come verificata"}">${ICON.check}</button>
       <button class="exrow__hit">
         <span class="exrow__d">${esc(dateShort(e.date))}</span>
         <span class="exrow__b">
@@ -1342,6 +1548,9 @@ const Views = (() => {
         <span class="exrow__pen">${ICON.pencil}</span>
       </button>
       <button class="exrow__x" aria-label="Elimina">${ICON.trash}</button>`;
+    $(".exrow__ok", row).onclick = () => {
+      Store.updateExpense(e.id, { ok: !e.ok }); buzz(); rerender();
+    };
     $(".exrow__hit", row).onclick = () => { if (afterEdit) afterEdit(); expenseSheet(e); };
     $(".exrow__x", row).onclick = () => {
       Store.removeExpense(e.id); buzz(); rerender(); toast("Spesa eliminata");
@@ -1373,6 +1582,36 @@ const Views = (() => {
         <span class="kpi__n">${nok(T.spent * S.fx)} · ${perDay}</span>
       </div>`;
     wrap.appendChild(k);
+
+    /* --- verifica per giorno: lo stato del rito serale ------
+       Verde: giornata segnata come verificata. Ambra: trascorsa
+       ma non ancora verificata, col conto di quello che resta.
+       Un tocco apre le spese di quel giorno. --- */
+    const vg = el("div", "card");
+    const trascorsi = TRIP.days.filter(x => x.date <= today).length;
+    const verificati = TRIP.days.filter(x => x.date <= today && S.dayOk[x.id]).length;
+    vg.innerHTML = `<div class="sect-head" style="margin-top:0"><span class="eyebrow">Verifica per giorno</span>
+      <i class="rule"></i><span class="eyebrow">${verificati}/${trascorsi} verificate</span></div>
+      <div class="vgrid"></div>
+      <p class="fld__h" style="margin:8px 0 0">Tocca un giorno per confermare le tappe previste e
+      spuntare le singole spese: cibo, esperienze, benzina, traghetti. Il numero dice quante voci
+      restano da sistemare.</p>`;
+    const rowv = $(".vgrid", vg);
+    Store.days().forEach(dd => {
+      const past = dd.date <= today;
+      const okd = !!S.dayOk[dd.id];
+      const resta = past
+        ? Store.dayPending(dd.id).length + Store.dayExpenses(dd.date).filter(e => !e.ok).length
+        : 0;
+      const b = el("button", "vchip " + (past ? (okd ? "vchip--ok" : "vchip--pend") : "vchip--fut"));
+      b.innerHTML = `<b>${esc(dd.id)}</b><span>${esc(dd.dateLabel.split(" ")[0])} ago</span>` +
+        (past && okd ? `<i class="vchip__c">${ICON.check}</i>` :
+         past && resta ? `<i class="ndot">${resta}</i>` : "");
+      b.title = dd.dow + " " + dd.dateLabel;
+      b.onclick = () => { buzz(); daySpeseSheet(dd); };
+      rowv.appendChild(b);
+    });
+    wrap.appendChild(vg);
 
     const add = el("button", "btn btn--go btn--full");
     add.innerHTML = `${ICON.plus}<span>Registra una spesa</span>`;
@@ -1419,7 +1658,7 @@ const Views = (() => {
             <span>${g.voci.map(e => esc(e.note || "spesa")).join(" · ")}</span>
           </span>
           <span class="exday__v">${eur2(g.tot)}</span>`;
-        row.onclick = () => { buzz(); extraSheet(g.day); };
+        row.onclick = () => { buzz(); daySpeseSheet(Store.days().find(x => x.id === g.day.id) || g.day); };
         box.appendChild(row);
       });
       wrap.appendChild(box);

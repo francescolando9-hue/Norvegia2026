@@ -1316,3 +1316,96 @@ input,textarea,select{font-size:16px}   /* sotto i 16px iOS zooma da solo */
 .flexrow__b{flex:1;min-width:0}
 .flexrow__x{flex:0 0 auto;padding:4px;opacity:.35}
 .flexrow__x svg{width:14px;height:14px;stroke:var(--open);fill:none;stroke-width:1.8}
+
+/* ============================================================
+   v11.0 — spese del giorno, verifica, editor pernotti
+   ============================================================ */
+
+/* riga secondaria del riepilogo (di cui extra) */
+.exsum--sub{margin-top:-5px;padding-top:6px;padding-bottom:6px;background:transparent;border:1px dashed var(--line2)}
+.exsum--sub b{font-size:12.5px;color:var(--fg2)}
+
+/* tappa prevista da confermare */
+.pend{
+  display:flex;align-items:center;gap:9px;
+  padding:9px 2px;border-bottom:1px solid var(--line);
+}
+.pend:last-of-type{border-bottom:0}
+.pend__b{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:left}
+.pend__b b{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pend__b small{font-size:11px;color:var(--fg3)}
+.pend__go{
+  flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;
+  padding:8px 11px;border-radius:999px;
+  background:var(--ok);color:var(--bg);
+  font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums;
+}
+.pend__go svg{width:13px;height:13px;stroke:currentColor}
+.pend__go:active{filter:brightness(1.08)}
+
+/* pulsanti rapidi: cibo, benzina, traghetto, parcheggio */
+.qchips{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 4px}
+.qchip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:7px 11px;border:1px solid var(--line2);border-radius:999px;
+  color:var(--fg2);font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+}
+.qchip svg{width:12px;height:12px}
+.qchip:active{background:var(--raise);color:var(--fg)}
+
+/* contatore sul pulsante Spese della giornata */
+.dayacts button{position:relative}
+.ndot{
+  position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;
+  display:inline-flex;align-items:center;justify-content:center;padding:0 4px;
+  border-radius:999px;background:var(--warn);color:var(--bg);
+  font-family:var(--f-mono);font-style:normal;font-size:9.5px;font-weight:600;
+}
+
+/* badge di verifica spese nella testata del giorno */
+.day__badge--eok{color:var(--ok);border-color:var(--ok-soft);background:var(--ok-soft)}
+.day__badge--epend{color:var(--warn);border-color:var(--warn);border-style:dashed}
+
+/* stato "giornata verificata" del pulsante nello sheet */
+.vday--ok{color:var(--ok);border-color:var(--ok-soft)}
+
+/* ============================================================
+   v11.1 — spunta sulle singole spese, verifica per giorno,
+   pernotti creabili con l'editor completo
+   ============================================================ */
+
+/* cerchio di verifica a sinistra di ogni spesa registrata */
+.exrow__ok{
+  flex:0 0 auto;width:26px;height:26px;border-radius:50%;
+  border:1.5px solid var(--line2);
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.exrow__ok svg{width:13px;height:13px;stroke:var(--fg3);fill:none;stroke-width:2.2;opacity:0;transition:opacity .12s}
+.exrow__ok:active{background:var(--raise)}
+.exrow--ok .exrow__ok{border-color:var(--ok);background:var(--ok-soft)}
+.exrow--ok .exrow__ok svg{stroke:var(--ok);opacity:1}
+.exrow--ok .exrow__b b{color:var(--fg2)}
+
+/* griglia dei giorni in Budget → Spese: lo stato della verifica */
+.vgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.vchip{
+  position:relative;flex:0 0 auto;min-width:54px;
+  padding:7px 10px 6px;border-radius:10px;border:1px solid var(--line2);
+  text-align:center;
+}
+.vchip:active{background:var(--raise)}
+.vchip b{display:block;font-family:var(--f-mono);font-size:11.5px;font-weight:600}
+.vchip span{display:block;font-family:var(--f-mono);font-size:9px;letter-spacing:.05em;color:var(--fg3);margin-top:2px}
+.vchip--ok{border-color:var(--ok-soft);background:color-mix(in srgb,var(--ok-soft) 55%,transparent)}
+.vchip--ok b{color:var(--ok)}
+.vchip--pend{border-color:color-mix(in srgb,var(--warn) 55%,transparent)}
+.vchip--pend b{color:var(--warn)}
+.vchip--fut{opacity:.45}
+.vchip__c{
+  position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;
+  background:var(--ok);display:inline-flex;align-items:center;justify-content:center;
+}
+.vchip__c svg{width:9px;height:9px;stroke:var(--bg);fill:none;stroke-width:3}
+
+/* col pulsante Pernotto le azioni del giorno possono andare a capo */
+.dayacts{flex-wrap:wrap}

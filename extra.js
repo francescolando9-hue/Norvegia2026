@@ -525,6 +525,17 @@ const Extra = (() => {
     }, { passive: true });
   }
 
+  /* Ridipinge la giornata aperta dopo una modifica, senza
+     perdere il punto in cui eri arrivato a scorrere. */
+  function refreshDay() {
+    if (!openId || !$("#dayl")) return;
+    const sc = $("#dayl .dayscroll");
+    const y = sc ? sc.scrollTop : 0;
+    paintDay();
+    const sc2 = $("#dayl .dayscroll");
+    if (sc2) sc2.scrollTop = y;
+  }
+
   function swap(dir) {
     const layer = $("#dayl");
     if (!layer || !document.startViewTransition) { paintDay(); return; }
@@ -572,6 +583,6 @@ const Extra = (() => {
     if (openId) closeDay(true);
   });
 
-  return { bind, mappa, dayMap, documenti, avvisiCard, openDay, closeDay, shareDay, shareTrip, ICON2,
+  return { bind, mappa, dayMap, documenti, avvisiCard, openDay, closeDay, refreshDay, shareDay, shareTrip, ICON2,
            get openId() { return openId; } };
 })();

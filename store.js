@@ -23,7 +23,7 @@ const Store = (() => {
     fx: 10.95,
     optional: true,
     done: {},        // id todo → true
-    expenses: [],    // { id, date, lineId, cat, amount, cur, note, seed }
+    expenses: [],    // { id, date, cat, amount, cur, note, stop, ok } — ok: spesa verificata da te
     seeded: false,
     notes: {},       // idGiorno → testo
     edits: {},       // "G1.stay.name" → valore
@@ -31,6 +31,7 @@ const Store = (() => {
     hidden: {},      // "G4.fixed.2" → true (tappe nascoste)
     stopEdit: {},    // "G4.fixed.2" → { t, title, kind, status, costo, note }
     catPlan: {},     // "dormire" → preventivo tuo, sovrascrive quello di partenza
+    dayOk: {},       // idGiorno → true: spese del giorno verificate
     paid: false,     // pagamenti iniziali già caricati nel registro
     packing: {},     // chiave voce → true
     packAdd: [],     // voci aggiunte alla valigia
@@ -244,6 +245,10 @@ const Store = (() => {
         name: getEdit(`${d.id}.stay.name`, d.stay.name),
         status: getEdit(`${d.id}.stay.status`, d.stay.status),
         costo: getEdit(`${d.id}.stay.costo`, d.stay.costo),
+        t: getEdit(`${d.id}.stay.t`, d.stay.t),
+        place: getEdit(`${d.id}.stay.place`, d.stay.place),
+        map: getEdit(`${d.id}.stay.map`, d.stay.map),
+        meta: getEdit(`${d.id}.stay.meta`, d.stay.meta),
         _ref: `${d.id}.stay`
       });
       if (S.hidden[`${d.id}.stay`]) o.stay = null;
@@ -292,9 +297,11 @@ const Store = (() => {
   }
 
   function addStop(dayId, obj) {
+    const stop = Object.assign({ id: uid(), t: "12:00", status: "free", kind: "stop" }, obj);
     S.extra[dayId] = S.extra[dayId] || [];
-    S.extra[dayId].push(Object.assign({ id: uid(), t: "12:00", status: "free", kind: "stop" }, obj));
+    S.extra[dayId].push(stop);
     save();
+    return stop;
   }
 
   /** Quante tappe hai nascosto in una giornata (per il ripristino). */
@@ -389,6 +396,36 @@ const Store = (() => {
       plan += t.plan; spent += t.spent; proj += t.proj;
     });
     return { plan, spent, proj, delta: proj - plan, residuo: Math.max(0, proj - spent) };
+  }
+
+  /* ---------- spese del giorno ------------------------------
+     Il rito serale: le tappe previste si confermano una a una,
+     gli extra si aggiungono, e alla fine la giornata si segna
+     come verificata.
+     -------------------------------------------------------- */
+  const dayExpenses = date => S.expenses.filter(e => e.date === date);
+  const daySpent = date => dayExpenses(date).reduce((a, e) => a + toEur(e), 0);
+
+  /* Le tappe di quel giorno con un costo previsto e nessuna
+     spesa registrata sopra: sono quelle da confermare. */
+  function dayPending(dayId) {
+    const d = days().find(x => x.id === dayId);
+    if (!d) return [];
+    const out = [];
+    d.fixed.forEach(f => {
+      if (f.costo == null) return;
+      const key = stopKey(dayId, f);
+      if (spentOnStop(key) === 0)
+        out.push({ f, key, title: f.title, cat: f.cat || "altro", costo: f.costo });
+    });
+    if (d.stay && d.stay.costo != null && spentOnStop(dayId + "/stay") === 0)
+      out.push({ f: d.stay, key: dayId + "/stay", title: d.stay.name, cat: "dormire", costo: d.stay.costo, isStay: true });
+    return out;
+  }
+
+  function setDayOk(id, v) {
+    if (v) S.dayOk[id] = true; else delete S.dayOk[id];
+    save();
   }
 
   /* ---------- extra di una giornata ------------------------
@@ -521,6 +558,7 @@ const Store = (() => {
     getEdit, setEdit, pinFor, setPin, docNum, setDocNum, checks, muteCheck, day, days,
     addExpense, updateExpense, removeExpense, toEur,
     expensesOnStop, spentOnStop, expensesInCat, spentInCat, stopKey, stopsWithCost,
+    dayExpenses, daySpent, dayPending, setDayOk,
     cats, catOf, setCatPlan, catTotals, totals,
     extrasOn, extraTotal, extrasByDay, extrasTotalAll,
     patchStop, hideStop, addStop, hiddenIn, restoreDay,
