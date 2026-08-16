@@ -28,7 +28,10 @@ const Store = (() => {
     notes: {},       // idGiorno → testo
     edits: {},       // "G1.stay.name" → valore
     extra: {},       // idGiorno → [ { id, t, title, meta } ]
-    hidden: {},      // "G4.fixed.2" → true (eventi nascosti)
+    hidden: {},      // "G4.fixed.2" → true (tappe nascoste)
+    stopEdit: {},    // "G4.fixed.2" → { t, title, kind, status, costo, note }
+    catPlan: {},     // "dormire" → preventivo tuo, sovrascrive quello di partenza
+    paid: false,     // pagamenti iniziali già caricati nel registro
     packing: {},     // chiave voce → true
     packAdd: [],     // voci aggiunte alla valigia
     wx: null         // cache meteo { at, days: {...} }
@@ -95,26 +98,46 @@ const Store = (() => {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
 
-  /* ---------- seed degli importi già pagati ---------------- */
+  /* ---------- pagamenti già fatti --------------------------
+     Entrano una sola volta e poi sono spese come tutte le altre:
+     modificabili ed eliminabili.
+     -------------------------------------------------------- */
   function seedOnce() {
-    if (S.seeded) return;
-    TRIP.budget.forEach(sec => sec.lines.forEach(line => {
-      if (!line.seed) return;
+    if (S.paid) {
+      migraSpese();
+      return;
+    }
+    (TRIP.paid || []).forEach(x => {
       S.expenses.push({
-        id: uid(),
-        date: line.seed.date || TRIP.meta.from,
-        lineId: line.id,
-        cat: sec.id,
-        amount: line.seed.nok != null ? line.seed.nok : line.seed.eur,
-        cur: line.seed.nok != null ? "NOK" : "EUR",
-        note: "Già pagato",
-        seed: true
+        id: x.id, date: x.date, amount: x.amount, cur: x.cur,
+        cat: x.cat, stop: x.stop || null, note: x.note || ""
       });
-    }));
-    S.seeded = true;
+    });
+    S.paid = true;
     save();
   }
 
+  /* Le spese salvate con il modello vecchio (lineId + sezione)
+     vengono ricondotte alle sei categorie. Una volta sola. */
+  const CAT_VECCHIE = {
+    voli: "viaggio", alloggi: "dormire", esperienze: "esperienze",
+    immersioni: "esperienze", trasporti: "auto", extra: "altro",
+    "x-cibo": "mangiare", "tr-melbu": "viaggio", "tr-moskenes": "viaggio"
+  };
+  function migraSpese() {
+    let tocco = false;
+    S.expenses.forEach(e => {
+      if (e.lineId !== undefined || e.stopId !== undefined || e.seed !== undefined) {
+        const c = CAT_VECCHIE[e.lineId] || CAT_VECCHIE[e.cat] || "altro";
+        e.cat = TRIP.cats.some(x => x.id === e.cat) ? e.cat : c;
+        if (e.stopId && !e.stop) e.stop = e.stopId;
+        delete e.lineId; delete e.stopId; delete e.seed;
+        tocco = true;
+      }
+      if (!TRIP.cats.some(x => x.id === e.cat)) { e.cat = "altro"; tocco = true; }
+    });
+    if (tocco) save();
+  }
 
   /* ---------- numeri di documento --------------------------
      Restano su questo dispositivo. Entrano nel backup JSON:
@@ -205,26 +228,104 @@ const Store = (() => {
     const o = Object.assign({}, d);
     o.headline = getEdit(`${d.id}.headline`, d.headline);
     o.fixed = d.fixed
-      .map((f, i) => Object.assign({}, f, { _ref: `${d.id}.fixed.${i}` }))
+      .map((f, i) => {
+        const ref = `${d.id}.fixed.${i}`;
+        return Object.assign({}, f, S.stopEdit[ref] || {}, { _ref: ref });
+      })
       .filter(f => !S.hidden[f._ref])
-      .concat((S.extra[d.id] || []).map(e => Object.assign({}, e, {
-        kind: "custom", status: e.status || "free", meta: e.meta ? [e.meta] : [], _custom: true
+      .concat((S.extra[d.id] || []).map(e => Object.assign({
+        kind: "custom", status: "free"
+      }, e, {
+        meta: Array.isArray(e.meta) ? e.meta : (e.meta ? [e.meta] : []),
+        _custom: true, _ref: `${d.id}.extra.${e.id}`
       })));
     if (d.stay) {
       o.stay = Object.assign({}, d.stay, {
         name: getEdit(`${d.id}.stay.name`, d.stay.name),
-        status: getEdit(`${d.id}.stay.status`, d.stay.status)
+        status: getEdit(`${d.id}.stay.status`, d.stay.status),
+        costo: getEdit(`${d.id}.stay.costo`, d.stay.costo),
+        _ref: `${d.id}.stay`
       });
+      if (S.hidden[`${d.id}.stay`]) o.stay = null;
     }
+    o.flex = (d.flex || [])
+      .map((f, i) => Object.assign({}, f, { _ref: `${d.id}.flex.${i}` }))
+      .filter(f => !S.hidden[f._ref]);
     o.userNote = S.notes[d.id] || "";
     return o;
   }
 
   const days = () => TRIP.days.map(day);
 
+  /* ---------- modifica delle tappe ------------------------
+     Le tappe che arrivano dai dati non si cancellano davvero:
+     si nascondono, così un aggiornamento dei dati non ti
+     restituisce roba che avevi tolto, e puoi sempre ripristinare.
+     Quelle che aggiungi tu vivono in S.extra e si eliminano.
+     -------------------------------------------------------- */
+  function patchStop(ref, patch) {
+    if (!ref) return;
+    if (ref.includes(".extra.")) {
+      const [dayId, , id] = ref.split(".");
+      const arr = S.extra[dayId] || [];
+      const e = arr.find(x => x.id === id);
+      if (e) Object.assign(e, patch);
+    } else if (ref.endsWith(".stay")) {
+      const dayId = ref.split(".")[0];
+      Object.entries(patch).forEach(([k, v]) => setEdit(`${dayId}.stay.${k}`, v));
+      return;
+    } else {
+      S.stopEdit[ref] = Object.assign({}, S.stopEdit[ref] || {}, patch);
+    }
+    save();
+  }
+
+  function hideStop(ref) {
+    if (ref && ref.includes(".extra.")) {
+      const [dayId, , id] = ref.split(".");
+      S.extra[dayId] = (S.extra[dayId] || []).filter(x => x.id !== id);
+    } else {
+      S.hidden[ref] = true;
+      delete S.stopEdit[ref];
+    }
+    save();
+  }
+
+  function addStop(dayId, obj) {
+    S.extra[dayId] = S.extra[dayId] || [];
+    S.extra[dayId].push(Object.assign({ id: uid(), t: "12:00", status: "free", kind: "stop" }, obj));
+    save();
+  }
+
+  /** Quante tappe hai nascosto in una giornata (per il ripristino). */
+  function hiddenIn(dayId) {
+    return Object.keys(S.hidden).filter(k => k.startsWith(dayId + ".") && S.hidden[k]).length;
+  }
+  function restoreDay(dayId) {
+    Object.keys(S.hidden).forEach(k => { if (k.startsWith(dayId + ".")) delete S.hidden[k]; });
+    Object.keys(S.stopEdit).forEach(k => { if (k.startsWith(dayId + ".")) delete S.stopEdit[k]; });
+    save();
+  }
+
+  /* ---------- categorie ------------------------------------
+     Sei, fisse, con un preventivo che puoi cambiare.
+     -------------------------------------------------------- */
+  function cats() {
+    return TRIP.cats.map(c => Object.assign({}, c, {
+      plan: S.catPlan[c.id] != null ? S.catPlan[c.id] : c.plan
+    }));
+  }
+  function catOf(id) { return cats().find(c => c.id === id) || cats()[cats().length - 1]; }
+  function setCatPlan(id, v) {
+    const n = Number(v);
+    if (isNaN(n) || n < 0) return;
+    S.catPlan[id] = n;
+    save();
+  }
+
   /* ---------- spese --------------------------------------- */
   function addExpense(e) {
-    S.expenses.push(Object.assign({ id: uid(), cur: "NOK", cat: "extra", note: "" }, e));
+    S.expenses.push(Object.assign({ id: uid(), cur: "EUR", cat: "altro", note: "", stop: null }, e));
     save();
   }
   function updateExpense(id, patch) {
@@ -235,53 +336,81 @@ const Store = (() => {
     S.expenses = S.expenses.filter(x => x.id !== id);
     save();
   }
-  /** Importo di una spesa convertito in euro col cambio corrente. */
   const toEur = e => (e.cur === "NOK" ? e.amount / S.fx : e.amount);
 
-  const expensesFor = lineId => S.expenses.filter(e => e.lineId === lineId);
-  const spentOn = lineId => expensesFor(lineId).reduce((s, e) => s + toEur(e), 0);
-  const looseIn = catId => S.expenses.filter(e => !e.lineId && e.cat === catId);
+  const expensesOnStop = key => S.expenses.filter(e => e.stop === key);
+  const spentOnStop = key => expensesOnStop(key).reduce((a, e) => a + toEur(e), 0);
+  const expensesInCat = id => S.expenses.filter(e => e.cat === id);
+  const spentInCat = id => expensesInCat(id).reduce((a, e) => a + toEur(e), 0);
 
-  /* Spese "extra" di una giornata.
+  /** Chiave stabile di una tappa: "G4/titolo" oppure "G4/stay". */
+  function stopKey(dayId, f) {
+    if (!f) return null;
+    if (f.isStay || f._ref === dayId + ".stay") return dayId + "/stay";
+    return dayId + "/" + (f.id || f.title);
+  }
 
-     Extra = quello che hai speso quel giorno e che NON è una delle
-     tappe segnate in quella giornata. Se il giorno ha volo, hotel e
-     cena, tutto ciò che registri e non è una di quelle tre è extra.
+  /* Tutte le tappe del viaggio che hanno un costo previsto,
+     con quanto ci hai già speso sopra. */
+  function stopsWithCost() {
+    const out = [];
+    days().forEach(d => {
+      d.fixed.forEach(f => {
+        if (f.costo == null) return;
+        const key = stopKey(d.id, f);
+        out.push({ day: d, f, key, cat: f.cat || "altro", costo: f.costo, spent: spentOnStop(key) });
+      });
+      if (d.stay && d.stay.costo != null) {
+        const key = d.id + "/stay";
+        out.push({ day: d, f: d.stay, key, cat: "dormire", costo: d.stay.costo, spent: spentOnStop(key) });
+      }
+    });
+    return out;
+  }
 
-     Serve sapere da quale tappa arriva una spesa: per questo ogni
-     spesa porta uno `stopId`. Le voci con un prezzo proprio (voli,
-     alloggi, esperienze, immersioni) restano sempre fuori dagli
-     extra, perché sono per definizione il costo di una tappa. */
+  /* Proiezione per categoria:
+     quello che hai già speso, più i costi previsti delle tappe
+     non ancora pagate. Se il totale resta sotto il preventivo,
+     vale il preventivo: significa che qualcosa deve ancora uscire. */
+  function catTotals(id) {
+    const c = catOf(id);
+    const spent = spentInCat(id);
+    const daPagare = stopsWithCost()
+      .filter(x => x.cat === id && x.spent === 0)
+      .reduce((a, x) => a + x.costo, 0);
+    const proj = Math.max(spent + daPagare, c.plan);
+    return { cat: c, plan: c.plan, spent, daPagare, proj };
+  }
 
+  function totals() {
+    let plan = 0, spent = 0, proj = 0;
+    cats().forEach(c => {
+      const t = catTotals(c.id);
+      plan += t.plan; spent += t.spent; proj += t.proj;
+    });
+    return { plan, spent, proj, delta: proj - plan, residuo: Math.max(0, proj - spent) };
+  }
+
+  /* ---------- extra di una giornata ------------------------
+     Extra = speso quel giorno e non appartenente a nessuna
+     tappa in programma di quella giornata.
+     -------------------------------------------------------- */
   function dayStopKeys(dayId) {
-    const d = TRIP.days.find(x => x.id === dayId);
+    const d = days().find(x => x.id === dayId);
     if (!d) return [];
-    const keys = d.fixed.map(f => dayId + "/" + (f.id || f.title));
-    (S.extra[dayId] || []).forEach(f => keys.push(dayId + "/" + (f.id || f.title)));
+    const keys = d.fixed.map(f => stopKey(dayId, f));
     if (d.stay) keys.push(dayId + "/stay");
     return keys;
   }
 
-  function isExtraOn(e, day) {
-    if (e.date !== day.date) return false;
-    // registrata da una tappa di questa giornata: è il costo di quella tappa
-    if (e.stopId && dayStopKeys(day.id).includes(e.stopId)) return false;
-    // voce con un preventivo proprio: appartiene a una tappa, non è un extra
-    if (e.lineId) {
-      const lo = lineOf(e.lineId);
-      if (lo && !lo.line.pool) return false;
-    }
-    return true;
-  }
-
   function extrasOn(date) {
-    const day = TRIP.days.find(d => d.date === date);
-    if (!day) return S.expenses.filter(e => e.date === date && !e.lineId);
-    return S.expenses.filter(e => isExtraOn(e, day));
+    const d = TRIP.days.find(x => x.date === date);
+    if (!d) return S.expenses.filter(e => e.date === date && !e.stop);
+    const keys = dayStopKeys(d.id);
+    return S.expenses.filter(e => e.date === date && (!e.stop || !keys.includes(e.stop)));
   }
   const extraTotal = date => extrasOn(date).reduce((a, e) => a + toEur(e), 0);
 
-  /* tutti gli extra del viaggio, raggruppati per giornata */
   function extrasByDay() {
     return TRIP.days.map(d => {
       const voci = extrasOn(d.date);
@@ -289,43 +418,6 @@ const Store = (() => {
     }).filter(x => x.voci.length);
   }
   const extrasTotalAll = () => extrasByDay().reduce((a, x) => a + x.tot, 0);
-
-  function lineOf(lineId) {
-    for (const sec of TRIP.budget) {
-      const l = sec.lines.find(x => x.id === lineId);
-      if (l) return { line: l, sec };
-    }
-    return null;
-  }
-
-  function totals() {
-    let plan = 0;
-    TRIP.budget.forEach(sec => sec.lines.forEach(l => {
-      if (l.optional && !S.optional) return;
-      plan += l.plan;
-    }));
-    const spent = S.expenses.reduce((s, e) => s + toEur(e), 0);
-    // proiezione: speso reale dove c'è, preventivo dove non c'è ancora nulla
-    let proj = 0;
-    TRIP.budget.forEach(sec => sec.lines.forEach(l => {
-      if (l.optional && !S.optional) return;
-      const sp = spentOn(l.id);
-      proj += sp > 0 ? sp : l.plan;
-    }));
-    proj += TRIP.budget.reduce((s, sec) => s + looseIn(sec.id).reduce((a, e) => a + toEur(e), 0), 0);
-    return { plan, spent, proj, delta: proj - plan };
-  }
-
-  function sectionTotals(sec) {
-    let plan = 0, spent = 0, proj = 0;
-    sec.lines.forEach(l => {
-      if (l.optional && !S.optional) return;
-      const sp = spentOn(l.id);
-      plan += l.plan; spent += sp; proj += sp > 0 ? sp : l.plan;
-    });
-    const loose = looseIn(sec.id).reduce((a, e) => a + toEur(e), 0);
-    return { plan, spent: spent + loose, proj: proj + loose, loose };
-  }
 
   /* ---------- allegati (IndexedDB) ------------------------ */
   const DB = "vn2026", TABLE = "files";
@@ -428,8 +520,10 @@ const Store = (() => {
     S, save, uid, seedOnce,
     getEdit, setEdit, pinFor, setPin, docNum, setDocNum, checks, muteCheck, day, days,
     addExpense, updateExpense, removeExpense, toEur,
-    expensesFor, spentOn, looseIn, lineOf, extrasOn, extraTotal, extrasByDay, extrasTotalAll,
-    totals, sectionTotals,
+    expensesOnStop, spentOnStop, expensesInCat, spentInCat, stopKey, stopsWithCost,
+    cats, catOf, setCatPlan, catTotals, totals,
+    extrasOn, extraTotal, extrasByDay, extrasTotalAll,
+    patchStop, hideStop, addStop, hiddenIn, restoreDay,
     Files, exportJson, importJson, reset,
     get memoryOnly() { return memoryOnly; }
   };

@@ -59,15 +59,26 @@ const Views = (() => {
   /* ========================================================
      sheet: spesa
      ======================================================== */
-  function lineOptions(selected) {
-    let html = `<option value="">— scegli —</option>`
-      + `<option value="loose:extra"${selected === "loose:extra" ? " selected" : ""}>Fuori piano · nessuna voce</option>`;
-    TRIP.budget.forEach(sec => {
-      html += `<optgroup label="${esc(sec.section)}">`;
-      sec.lines.forEach(l => {
-        html += `<option value="line:${l.id}"${selected === "line:" + l.id ? " selected" : ""}>${esc(l.label)}</option>`;
+  /* Sei categorie, non trenta voci. La tappa a cui la spesa
+     appartiene si sceglie a parte, quando serve. */
+  function catOptions(selected) {
+    return Store.cats().map(c =>
+      `<option value="${c.id}"${selected === c.id ? " selected" : ""}>${esc(c.label)}</option>`
+    ).join("");
+  }
+
+  /* tutte le tappe del viaggio, per collegare una spesa */
+  function stopOptions(selected) {
+    let html = `<option value="">Nessuna tappa</option>`;
+    Store.days().forEach(d => {
+      const items = [];
+      d.fixed.forEach(f => items.push([Store.stopKey(d.id, f), f.t + " " + f.title]));
+      if (d.stay) items.push([d.id + "/stay", (d.stay.t || "") + " " + d.stay.name]);
+      if (!items.length) return;
+      html += `<optgroup label="${esc(d.id)} · ${esc(d.dow)} ${esc(d.dateLabel)}">`;
+      items.forEach(([k, label]) => {
+        html += `<option value="${esc(k)}"${selected === k ? " selected" : ""}>${esc(label)}</option>`;
       });
-      html += `<option value="loose:${sec.id}"${selected === "loose:" + sec.id ? " selected" : ""}>Fuori piano · ${esc(sec.section)}</option>`;
       html += `</optgroup>`;
     });
     return html;
@@ -82,10 +93,8 @@ const Views = (() => {
 
   function expenseSheet(existing, prefill = {}) {
     const e = existing || {};
-    const sel = e.lineId ? "line:" + e.lineId
-      : (e.cat && !e.lineId ? "loose:" + e.cat
-      : (prefill.lineId ? "line:" + prefill.lineId
-      : (prefill.extra ? "loose:extra" : "")));
+    const selCat = e.cat || prefill.cat || "altro";
+    const selStop = existing ? (e.stop || "") : (prefill.stop || "");
     const cur = e.cur || prefill.cur || "EUR";
 
     sheet(existing ? "Modifica spesa" : "Registra una spesa", (body, done) => {
@@ -98,9 +107,10 @@ const Views = (() => {
               <button data-v="NOK" class="${cur === "NOK" ? "on" : ""}">NOK</button>
             </div>
           </div>`, `Cambio in uso: 1 € = ${num(S.fx)} NOK`)}
-        ${field("Voce di budget", `<select class="in" id="ex-line">${lineOptions(sel)}</select>`,
-                "Per un caff\u00e8 o un parcheggio va bene \u201cFuori piano\u201d: sceglierne una serve solo a far comparire la spesa nella sezione giusta del budget.")}
+        ${field("Categoria", `<select class="in" id="ex-cat">${catOptions(selCat)}</select>`)}
         ${field("Giorno", `<select class="in" id="ex-day">${dayOptions(e.date || prefill.date)}</select>`)}
+        ${field("Tappa", `<select class="in" id="ex-stop">${stopOptions(selStop)}</select>`,
+                "Collegandola a una tappa il costo compare dentro quella tappa. Altrimenti conta fra gli extra della giornata.")}
         ${field("Nota", `<input class="in" id="ex-note" type="text" maxlength="80"
                  value="${esc(e.note || "")}" placeholder="Benzina a Finnsnes">`)}
         <div class="conv" id="ex-conv"></div>
@@ -128,19 +138,12 @@ const Views = (() => {
       $('[data-act="ok"]', body).onclick = () => {
         const v = parseFloat(String(amt.value).replace(",", "."));
         if (!v || v <= 0) { amt.focus(); toast("Serve un importo"); return; }
-        const raw = $("#ex-line", body).value;
-        if (!raw) { toast("Scegli una voce"); return; }
-        const [kind, id] = raw.split(":");
-        const lo = kind === "line" ? Store.lineOf(id) : null;
         const rec = {
           amount: v, cur: curr,
           date: $("#ex-day", body).value,
           note: $("#ex-note", body).value.trim(),
-          lineId: kind === "line" ? id : null,
-          cat: kind === "line" ? (lo && lo.sec ? lo.sec.id : "extra") : id,
-          // la tappa da cui è stata registrata: serve alle voci cumulative,
-          // dove il totale della voce non è il costo di una singola tappa
-          stopId: existing ? existing.stopId : (prefill.stopId || null)
+          cat: $("#ex-cat", body).value,
+          stop: $("#ex-stop", body).value || null
         };
         if (existing) Store.updateExpense(existing.id, rec);
         else Store.addExpense(rec);
@@ -175,25 +178,78 @@ const Views = (() => {
   /* ========================================================
      sheet: tappa aggiunta
      ======================================================== */
-  function eventSheet(dayId) {
-    sheet("Aggiungi una tappa", (body, done) => {
+  const KINDS = [
+    ["stop", "Sosta"], ["activity", "Attività"], ["meal", "Pasto"], ["stay", "Alloggio"],
+    ["trek", "Trekking"], ["dive", "Immersione"], ["drive", "Trasferimento"],
+    ["ferry", "Traghetto"], ["flight", "Volo"], ["car", "Auto"], ["info", "Riferimento"]
+  ];
+  const STATI = [
+    ["free", "Niente da prenotare"], ["booked", "Prenotato"],
+    ["todo", "Da prenotare"], ["verify", "Da verificare"], ["info", "Solo un riferimento"]
+  ];
+
+  /* Editor di una tappa: serve sia per crearne una sia per
+     modificarne una esistente, comprese quelle che arrivano
+     dai dati. Da qui si elimina. */
+  function stopSheet(d, f) {
+    const nuovo = !f;
+    const v = f || { t: "12:00", title: "", kind: "stop", status: "free", meta: [] };
+    const ref = f && f._ref;
+    const seed = !!(f && !f._custom);
+
+    sheet(nuovo ? "Aggiungi una tappa" : "Modifica la tappa", (body, done) => {
       body.innerHTML = `
-        ${field("Orario", `<input class="in" id="ev-t" type="time" value="12:00">`)}
-        ${field("Cosa", `<input class="in" id="ev-title" type="text" placeholder="Sosta a Nusfjord">`)}
-        ${field("Dettaglio", `<input class="in" id="ev-meta" type="text" placeholder="Biglietto sul posto">`)}
-        ${actions("Aggiungi", "Annulla")}`;
+        ${field("Orario", `<input class="in" id="sp-t" type="time" value="${esc(/^\d\d:\d\d$/.test(v.t) ? v.t : "12:00")}">`)}
+        ${field("Cosa", `<input class="in" id="sp-title" type="text" maxlength="80"
+                 value="${esc(v.title)}" placeholder="Sosta a Nusfjord">`)}
+        ${field("Tipo", `<select class="in" id="sp-kind">${KINDS.map(([k, l]) =>
+                 `<option value="${k}"${v.kind === k ? " selected" : ""}>${l}</option>`).join("")}</select>`)}
+        ${field("Stato", `<select class="in" id="sp-status">${STATI.map(([k, l]) =>
+                 `<option value="${k}"${v.status === k ? " selected" : ""}>${l}</option>`).join("")}</select>`)}
+        ${field("Costo previsto", `<div class="cur">
+            <input class="in" id="sp-costo" type="number" inputmode="decimal" step="0.01" min="0"
+              value="${v.costo != null ? v.costo : ""}" placeholder="nessuno">
+            <select class="in" id="sp-cat" style="flex:1">${catOptions(v.cat || "esperienze")}</select>
+          </div>`, "In euro. Lascialo vuoto se questa tappa non ha un costo suo.")}
+        ${field("Note", `<textarea class="in in--area" id="sp-meta" rows="3"
+                 placeholder="Una riga per nota">${esc((v.meta || []).join("\n"))}</textarea>`)}
+        ${actions(nuovo ? "Aggiungi" : "Salva", "Annulla")}`;
+
+      if (!nuovo) {
+        const del = el("button", "btn btn--danger btn--full");
+        del.style.marginTop = "10px";
+        del.innerHTML = `${ICON.trash}<span>${seed ? "Togli dalla giornata" : "Elimina"}</span>`;
+        del.onclick = () => {
+          Store.hideStop(ref); buzz(); done(); rerender();
+          toast(seed ? "Tappa tolta · la ripristini dal fondo del giorno" : "Tappa eliminata");
+        };
+        body.appendChild(del);
+      }
+
       $('[data-act="ok"]', body).onclick = () => {
-        const title = $("#ev-title", body).value.trim();
+        const title = $("#sp-title", body).value.trim();
         if (!title) { toast("Serve un titolo"); return; }
-        (S.extra[dayId] = S.extra[dayId] || []).push({
-          id: Store.uid(), t: $("#ev-t", body).value || "12:00",
-          title, meta: $("#ev-meta", body).value.trim()
-        });
-        Store.save(); buzz(); done(); rerender(); toast("Tappa aggiunta");
+        const costoRaw = $("#sp-costo", body).value.trim();
+        const patch = {
+          t: $("#sp-t", body).value || "12:00",
+          title,
+          kind: $("#sp-kind", body).value,
+          status: $("#sp-status", body).value,
+          costo: costoRaw === "" ? null : Number(costoRaw.replace(",", ".")),
+          cat: $("#sp-cat", body).value,
+          meta: $("#sp-meta", body).value.split("\n").map(x => x.trim()).filter(Boolean)
+        };
+        if (patch.costo == null) delete patch.costo;
+        if (nuovo) Store.addStop(d.id, patch);
+        else Store.patchStop(ref, patch);
+        buzz(); done(); rerender();
+        toast(nuovo ? "Tappa aggiunta" : "Tappa aggiornata");
       };
       $('[data-act="cancel"]', body).onclick = done;
     });
   }
+
+  const eventSheet = dayId => stopSheet(Store.days().find(x => x.id === dayId), null);
 
   /* ========================================================
      sheet: meteo del giorno
@@ -315,7 +371,7 @@ const Views = (() => {
       if (d.stay) seqItems.push({
         id: "stay", t: d.stay.t || "20:00", title: d.stay.name,
         kind: "stay", status: d.stay.status, at: d.stay.at,
-        bill: stayLineId(d.id),
+        cat: "dormire", costo: d.stay.costo, isStay: true,
         meta: (d.stay.checkin ? [d.stay.checkin] : []).concat(d.stay.meta || []),
         isStay: true
       });
@@ -545,7 +601,7 @@ const Views = (() => {
         const tot = voci.reduce((a, e) => a + Store.toEur(e), 0);
         list.innerHTML = `<div class="exsum"><span>Totale del giorno</span><b>${eur2(tot)}</b></div>`;
         voci.forEach(e => {
-          const lo = e.lineId ? Store.lineOf(e.lineId) : null;
+          const lo = { line: { label: Store.catOf(e.cat).label } };
           const row = el("div", "exrow");
           row.innerHTML = `
             <button class="exrow__b">
@@ -577,40 +633,30 @@ const Views = (() => {
      una voce di budget mostra quanto è preventivato, quanto hai
      speso davvero, e permette di registrarlo da lì.
      -------------------------------------------------------- */
+  /* ---------- il costo di questa tappa ----------------------
+     `costo` è il preventivo della tappa, `spese` sono i soldi
+     davvero collegati a lei. Da qui registri, correggi, e
+     cambi il preventivo.
+     -------------------------------------------------------- */
   function costBlock(f, key) {
-    if (!f.bill) return null;
-    const lo = Store.lineOf(f.bill);
-    if (!lo) return null;
-    const pool0 = !!lo.line.pool;
-    // Una voce cumulativa è condivisa da tutto il viaggio: il suo totale
-    // non è il costo di questa tappa. Quindi qui conto solo le spese
-    // registrate DA questa tappa.
-    const spese = pool0
-      ? Store.expensesFor(f.bill).filter(e => e.stopId === key)
-      : Store.expensesFor(f.bill);
+    const spese = Store.expensesOnStop(key);
     const speso = spese.reduce((a, e) => a + Store.toEur(e), 0);
-    const box = el("div", "cost" + (speso > 0 ? " cost--paid" : ""));
+    const costo = f.costo;
+    if (costo == null && !spese.length) return null;
 
-    // una voce cumulativa (cibo, carburante, varie) copre tutto il viaggio:
-    // mostrarne il preventivo accanto a una singola tappa sarebbe fuorviante
-    const pool = pool0;
-    if (pool && speso === 0) {
-      box.classList.add("cost--pool");
-      box.innerHTML = `<div class="cost__row">
-        <span class="cost__k">Su “${esc(lo.line.label)}”</span>
-        <span class="cost__d">nulla registrato</span>
-      </div>`;
-    } else box.innerHTML = `
+    const cat = Store.catOf(f.cat || "altro");
+    const box = el("div", "cost" + (speso > 0 ? " cost--paid" : ""));
+    box.innerHTML = `
       <div class="cost__row">
-        <span class="cost__k">${speso > 0 ? "Speso" : "Preventivo"}</span>
-        <span class="cost__v">${eur2(speso > 0 ? speso : lo.line.plan)}</span>
+        <span class="cost__k">${speso > 0 ? "Speso" : "Previsto"} · ${esc(cat.label)}</span>
+        <span class="cost__v">${eur2(speso > 0 ? speso : costo)}</span>
       </div>
-      ${!pool && speso > 0 && Math.abs(speso - lo.line.plan) >= 1
+      ${speso > 0 && costo != null && Math.abs(speso - costo) >= 1
         ? `<div class="cost__row cost__row--sub">
-             <span class="cost__k">Preventivo</span>
-             <span class="cost__d">${eur2(lo.line.plan)}
-               <em class="${speso > lo.line.plan ? "up" : "down"}">${speso > lo.line.plan ? "+" : "−"}${
-                 eur2(Math.abs(speso - lo.line.plan)).replace("€ ", "")}</em></span>
+             <span class="cost__k">Previsto</span>
+             <span class="cost__d">${eur2(costo)}
+               <em class="${speso > costo ? "up" : "down"}">${speso > costo ? "+" : "−"}${
+                 eur2(Math.abs(speso - costo)).replace("€ ", "")}</em></span>
            </div>` : ""}
       ${spese.length > 1 ? `<div class="cost__n">${spese.length} registrazioni</div>` : ""}`;
 
@@ -619,30 +665,21 @@ const Views = (() => {
     add.innerHTML = `${ICON.coin}<span>${speso > 0 ? "Aggiungi" : "Registra la spesa"}</span>`;
     add.onclick = e => {
       e.stopPropagation();
-      expenseSheet(null, { lineId: f.bill, date: f.date || null, stopId: key });
+      expenseSheet(null, { stop: key, cat: f.cat || "altro", date: f.date || null });
     };
     acts.appendChild(add);
 
-    if (spese.length === 1) {
-      const mod = el("button", "minibtn");
-      mod.innerHTML = `${ICON.pencil}<span>Correggi</span>`;
-      mod.onclick = e => { e.stopPropagation(); expenseSheet(spese[0]); };
-      acts.appendChild(mod);
-    } else if (spese.length > 1) {
-      const vedi = el("button", "minibtn");
-      vedi.innerHTML = `${ICON.coin}<span>Vedi tutte</span>`;
-      vedi.onclick = e => {
-        e.stopPropagation();
-        S.view = "budget"; S.tab.budget = "spese"; Store.save(); App.render();
-      };
-      acts.appendChild(vedi);
-    }
+    spese.forEach(sp => {
+      const b = el("button", "minibtn");
+      b.innerHTML = `${ICON.pencil}<span>${sp.cur === "NOK" ? nok(sp.amount) : eur2(sp.amount)}</span>`;
+      b.onclick = e => { e.stopPropagation(); expenseSheet(sp); };
+      acts.appendChild(b);
+    });
     box.appendChild(acts);
     return box;
   }
 
-  /* ---------- tappa ---------------------------------------- */
-  function stopKey(d, f) { return d.id + "/" + (f.id || f.title); }
+  const stopKey = (d, f) => Store.stopKey(d.id, f);
 
   function stopRow(f, d, n, state) {
     const key = stopKey(d, f);
@@ -671,7 +708,7 @@ const Views = (() => {
         </span>
         <span class="stop__caret">${ICON.caret}</span>
       </button>
-      ${f.isStay ? `<button class="stop__edit" aria-label="Modifica il pernotto">${ICON.pencil}</button>` : ""}`;
+      <button class="stop__edit" aria-label="Modifica">${ICON.pencil}</button>`;
 
     const det = el("div", "stop__det");
     det.hidden = !opened;
@@ -724,7 +761,10 @@ const Views = (() => {
 
     row.appendChild(det);
 
-    if (f.isStay) $(".stop__edit", row).onclick = e => { e.stopPropagation(); staySheet(d); };
+    $(".stop__edit", row).onclick = e => {
+      e.stopPropagation();
+      if (f.isStay) staySheet(d); else stopSheet(d, f);
+    };
     $(".stop__hd", row).onclick = () => {
       if (openStops.has(key)) openStops.delete(key); else openStops.add(key);
       det.hidden = !openStops.has(key);
@@ -818,7 +858,7 @@ const Views = (() => {
       if (d.stay) seqItems.push({
         id: "stay", t: d.stay.t || "20:00", title: d.stay.name,
         kind: "stay", status: d.stay.status, at: d.stay.at,
-        bill: stayLineId(d.id),
+        cat: "dormire", costo: d.stay.costo, isStay: true,
         meta: (d.stay.checkin ? [d.stay.checkin] : []).concat(d.stay.meta || []),
         isStay: true
       });
@@ -844,8 +884,24 @@ const Views = (() => {
     /* --- senza orario --- */
     if (d.flex.length) {
       const fb = el("div", "flexband");
-      fb.innerHTML = `<span class="eyebrow">Senza orario</span>
-        <ul>${d.flex.map(f => `<li><b>${esc(f.title)}${f.optional ? '<span class="opt">opzionale</span>' : ""}</b><small>${esc(f.meta)}</small></li>`).join("")}</ul>`;
+      fb.innerHTML = `<span class="eyebrow">Senza orario</span>`;
+      const ul = el("ul");
+      d.flex.forEach(f => {
+        const li = el("li", "flexrow");
+        li.innerHTML = `
+          <span class="flexrow__b">
+            <b>${esc(f.title)}${f.optional ? '<span class="opt">opzionale</span>' : ""}</b>
+            <small>${esc(f.meta)}</small>
+          </span>
+          <button class="flexrow__x" aria-label="Togli">${ICON.trash}</button>`;
+        $(".flexrow__x", li).onclick = e => {
+          e.stopPropagation();
+          Store.hideStop(f._ref); buzz(); rerender();
+          toast("Tolta · la ripristini dal fondo del giorno");
+        };
+        ul.appendChild(li);
+      });
+      fb.appendChild(ul);
       body.appendChild(fb);
     }
 
@@ -871,7 +927,12 @@ const Views = (() => {
       "Nota · " + d.dateLabel, d.userNote,
       v => { if (v.trim()) S.notes[d.id] = v.trim(); else delete S.notes[d.id]; Store.save(); },
       { multi: true, label: "Nota", ph: "Numero di casa, dove ho parcheggiato, cosa dice il gestore…" })));
-    acts.appendChild(mk(ICON.plus, "Tappa", () => eventSheet(d.id)));
+    acts.appendChild(mk(ICON.plus, "Tappa", () => stopSheet(d, null)));
+    const tolte = Store.hiddenIn(d.id);
+    if (tolte) acts.appendChild(mk(ICON.refresh, "Ripristina " + tolte, () => {
+      Store.restoreDay(d.id); buzz(); rerender();
+      toast(tolte === 1 ? "Tappa ripristinata" : tolte + " tappe ripristinate");
+    }));
     body.appendChild(acts);
 
     if (d.notes.length) {
@@ -1009,19 +1070,10 @@ const Views = (() => {
      contatore delle notti aperte e la card di oggi. Il prezzo
      diventa una spesa collegata alla voce di budget del giorno.
      ======================================================== */
-  function stayLineId(dayId) {
-    const d = TRIP.days.find(x => x.id === dayId);
-    if (!d) return null;
-    const num = d.dateLabel.split(" ")[0];
-    const sec = TRIP.budget.find(b => b.id === "alloggi");
-    const line = sec && sec.lines.find(l => l.day.split(" ")[0] === num);
-    return line ? line.id : null;
-  }
-
   function staySheet(d) {
     const seed = TRIP.days.find(x => x.id === d.id).stay;
-    const lineId = stayLineId(d.id);
-    const already = lineId ? Store.expensesFor(lineId) : [];
+    const key = d.id + "/stay";
+    const already = Store.expensesOnStop(key);
 
     sheet("Pernotto · " + d.dateLabel, (body, done) => {
       body.innerHTML = `
@@ -1078,7 +1130,7 @@ const Views = (() => {
           const v = parseFloat(String(amt.value).replace(",", "."));
           if (v > 0) {
             Store.addExpense({
-              amount: v, cur, date: d.date, lineId, cat: "alloggi",
+              amount: v, cur, date: d.date, stop: key, cat: "dormire",
               note: (name || seed.name) + " · notte " + d.dateLabel
             });
           }
@@ -1169,122 +1221,121 @@ const Views = (() => {
   function budgetPiano() {
     const wrap = el("div");
     const T = Store.totals();
-    const openStays = TRIP.days.filter(d => {
-      const dd = Store.day(d);
-      return dd.stay && dd.stay.status === "todo";
-    });
+    const openStays = Store.days().filter(d => d.stay && d.stay.status === "todo");
 
     const k = el("div", "kpis");
     k.innerHTML = `
       <div class="kpi kpi--head">
         <span class="kpi__k">Proiezione · 2 persone</span>
         <span class="kpi__v">${eur(T.proj)}</span>
-        <span class="kpi__n">${T.delta >= 0 ? "+" : "−"}${num(Math.abs(Math.round(T.delta)))} € sul preventivo${S.optional ? "" : " · opzionali esclusi"}</span>
+        <span class="kpi__n">${T.delta >= 0 ? "+" : "−"}${num(Math.abs(Math.round(T.delta)))} € sul preventivo</span>
       </div>
-      <div class="kpi"><span class="kpi__k">Preventivo</span><span class="kpi__v">${eur(T.plan)}</span><span class="kpi__n">dal file v6</span></div>
+      <div class="kpi"><span class="kpi__k">Preventivo</span><span class="kpi__v">${eur(T.plan)}</span><span class="kpi__n">modificabile</span></div>
       <div class="kpi"><span class="kpi__k">Speso finora</span><span class="kpi__v down">${eur(T.spent)}</span><span class="kpi__n">${S.expenses.length} registrazion${S.expenses.length === 1 ? "e" : "i"}</span></div>
-      <div class="kpi"><span class="kpi__k">Da spendere</span><span class="kpi__v">${eur(Math.max(0, T.proj - T.spent))}</span><span class="kpi__n">stima residua</span></div>
+      <div class="kpi"><span class="kpi__k">Da spendere</span><span class="kpi__v">${eur(T.residuo)}</span><span class="kpi__n">stima residua</span></div>
       <div class="kpi"><span class="kpi__k">Notti aperte</span><span class="kpi__v ${openStays.length ? "up" : "down"}">${openStays.length}</span><span class="kpi__n">${openStays.length ? openStays.map(d => d.dateLabel.split(" ")[0]).join(", ") + " ago" : "tutte chiuse"}</span></div>`;
     wrap.appendChild(k);
 
     const ctrl = el("div", "bctrl");
     ctrl.innerHTML = `
       <label class="bctrl__k" for="fx">NOK per €</label>
-      <input id="fx" class="in in--fx" type="number" step="0.01" min="1" value="${S.fx}">
-      <span class="sw ${S.optional ? "sw--on" : ""}" id="optsw" role="button" tabindex="0" aria-label="Includi opzionali">
-        <i class="sw__t"></i><span class="bctrl__k">Opzionali</span>
-      </span>`;
+      <input id="fx" class="in in--fx" type="number" step="0.01" min="1" value="${S.fx}">`;
     $("#fx", ctrl).onchange = e => {
       const n = parseFloat(String(e.target.value).replace(",", "."));
       if (n > 0) { S.fx = n; Store.save(); rerender(); }
     };
-    const tg = () => { S.optional = !S.optional; Store.save(); rerender(); };
-    $("#optsw", ctrl).onclick = tg;
-    $("#optsw", ctrl).onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); tg(); } };
     wrap.appendChild(ctrl);
 
-    TRIP.budget.forEach(sec => {
-      const tot = Store.sectionTotals(sec);
+    /* --- le sei categorie --- */
+    Store.cats().forEach(c => {
+      const t = Store.catTotals(c.id);
+      const quota = t.proj > 0 ? Math.min(100, t.spent / t.proj * 100) : 0;
       const box = el("div", "bsec");
-      const head = el("div", "bsec__head");
-      head.innerHTML = `<span class="eyebrow">${esc(sec.section)}</span>
-        <span class="bsec__tot">${eur(tot.proj)}${tot.spent ? ` <i>di cui ${eur(tot.spent)} spesi</i>` : ""}</span>`;
-      box.appendChild(head);
-      const pct = Math.min(100, tot.plan ? (tot.spent / tot.plan * 100) : 0);
-      box.appendChild(el("div", "bsec__bar", `<i style="width:${pct.toFixed(1)}%"></i>`));
+      box.innerHTML = `
+        <div class="bsec__head">
+          <span class="eyebrow">${esc(c.label)}</span>
+          <span class="bsec__tot">${eur(t.spent)} <i>di ${eur(t.proj)}</i></span>
+        </div>
+        <div class="bsec__bar"><i style="width:${quota.toFixed(1)}%"></i></div>`;
 
-      sec.lines.forEach(line => {
-        if (line.optional && !S.optional) return;
-        const sp = Store.spentOn(line.id);
-        const nEx = Store.expensesFor(line.id).length;
-        const row = el("button", "bline" + (line.optional ? " bline--opt" : "") + (sp > 0 ? " bline--paid" : ""));
-        const over = sp > line.plan * 1.001;
-        row.innerHTML = `
-          <div class="bline__l">
-            <div class="bline__t">${esc(line.label)}${line.optional ? '<span class="opt">opz</span>' : ""}</div>
-            <div class="bline__d">${esc(line.day)} · ${line.booked ? "prenotato" : "aperto"}${nEx ? ` · ${nEx} spes${nEx === 1 ? "a" : "e"}` : ""}</div>
-            ${line.note ? `<div class="bline__note">${esc(line.note)}</div>` : ""}
-          </div>
-          <div class="bline__r">
-            <span class="bline__v ${over ? "up" : ""}">${sp > 0 ? eur(sp) : eur(line.plan)}</span>
-            <span class="bline__tagv">${sp > 0 ? (over ? "oltre il preventivo" : "reale") : "preventivo"}</span>
-          </div>`;
-        row.onclick = () => lineSheet(line, sec);
-        box.appendChild(row);
-      });
+      const row = el("button", "catrow");
+      row.innerHTML = `
+        <span class="catrow__b">
+          <b>Preventivo ${eur2(t.plan)}</b>
+          <small>${t.daPagare > 0
+            ? "ancora da pagare " + eur2(t.daPagare) + " di tappe previste"
+            : (t.spent > t.plan ? "sei sopra di " + eur2(t.spent - t.plan) : "nessuna tappa in attesa")}</small>
+        </span>
+        <span class="catrow__ic">${ICON.pencil}</span>`;
+      row.onclick = () => catSheet(c);
+      box.appendChild(row);
 
-      const loose = Store.looseIn(sec.id);
-      if (loose.length) {
-        const l = el("button", "bline bline--loose");
-        const s = loose.reduce((a, e) => a + Store.toEur(e), 0);
-        l.innerHTML = `
-          <div class="bline__l"><div class="bline__t">Fuori piano</div>
-            <div class="bline__d">${loose.length} voc${loose.length === 1 ? "e" : "i"} senza preventivo</div></div>
-          <div class="bline__r"><span class="bline__v up">${eur(s)}</span><span class="bline__tagv">extra</span></div>`;
-        l.onclick = () => { S.tab.budget = "spese"; Store.save(); rerender(); };
-        box.appendChild(l);
+      // le tappe di questa categoria che hanno un costo
+      const tappe = Store.stopsWithCost().filter(x => x.cat === c.id);
+      if (tappe.length) {
+        const ul = el("div", "catstops");
+        tappe.forEach(x => {
+          const b = el("button", "bline" + (x.spent > 0 ? " bline--paid" : ""));
+          b.innerHTML = `
+            <span class="bline__l">
+              <span class="bline__t">${esc(x.f.title || x.f.name)}</span>
+              <span class="bline__d">${esc(x.day.id)} · ${esc(x.day.dateLabel)}${x.spent > 0 ? " · pagata" : ""}</span>
+            </span>
+            <span class="bline__r">
+              <span class="bline__v">${eur2(x.spent > 0 ? x.spent : x.costo)}</span>
+              ${x.spent > 0 && Math.abs(x.spent - x.costo) >= 1
+                ? `<span class="bline__p">prev. ${eur2(x.costo)}</span>` : ""}
+            </span>`;
+          b.onclick = () => { buzz(); Extra.openDay(x.day.id); };
+          ul.appendChild(b);
+        });
+        box.appendChild(ul);
       }
       wrap.appendChild(box);
     });
 
-    const notes = el("div", "card");
-    notes.innerHTML = `<span class="eyebrow">Letture del budget</span>
-      <ul class="ev__meta" style="margin-top:9px">${TRIP.budgetNotes.map(n => `<li>${esc(n)}</li>`).join("")}</ul>
-      <p class="bline__note" style="margin-top:10px">${esc(TRIP.meta.fxNote)}</p>`;
-    wrap.appendChild(notes);
+    const note = el("div", "card");
+    note.innerHTML = `<span class="eyebrow">Come si legge</span>
+      <ul class="ev__meta" style="margin-top:9px">
+        <li>Il <b>preventivo</b> è tuo: toccalo e cambialo quando vuoi.</li>
+        <li>La <b>proiezione</b> è quello che hai già speso più i costi previsti delle tappe non ancora pagate. Se resta sotto il preventivo vale il preventivo, perché qualcosa deve ancora uscire.</li>
+        <li>Il costo di una singola attività si mette e si corregge dalla tappa, nella sezione Giorni.</li>
+      </ul>`;
+    wrap.appendChild(note);
     return wrap;
   }
 
-  function lineSheet(line, sec) {
-    sheet(line.label, (body, done) => {
-      const sp = Store.spentOn(line.id);
-      const list = Store.expensesFor(line.id).sort((a, b) => a.date.localeCompare(b.date));
+  /* preventivo di una categoria: è tuo, lo cambi da qui */
+  function catSheet(c) {
+    sheet("Preventivo · " + c.label, (body, done) => {
+      const t = Store.catTotals(c.id);
       body.innerHTML = `
-        <div class="wxgrid wxgrid--2">
-          <div><span>Preventivo</span><b>${eur(line.plan)}</b></div>
-          <div><span>Speso</span><b class="${sp > line.plan * 1.001 ? "up" : "down"}">${eur(sp)}</b></div>
-        </div>
-        ${line.note ? `<p class="fld__h">${esc(line.note)}</p>` : ""}
-        <div class="exlist" id="ls"></div>
-        <div class="sheet__act"><button class="btn btn--go" data-act="add">${ICON.plus}<span>Registra una spesa</span></button></div>`;
-      const ls = $("#ls", body);
-      if (!list.length) ls.innerHTML = `<p class="empty">Nessuna spesa registrata su questa voce.</p>`;
-      else list.forEach(e => ls.appendChild(expenseRow(e, done)));
-      $('[data-act="add"]', body).onclick = () => { done(); expenseSheet(null, { lineId: line.id }); };
-    }, { focus: false });
+        ${field("Quanto prevedi di spendere", `<input class="in in--big" id="ct-p" type="number"
+                 inputmode="decimal" step="1" min="0" value="${t.plan}">`,
+                 "In euro, per due persone, su tutto il viaggio.")}
+        <ul class="ev__meta">
+          <li>Finora hai speso ${eur2(t.spent)}.</li>
+          ${t.daPagare > 0 ? `<li>Restano ${eur2(t.daPagare)} di tappe già previste ma non ancora pagate.</li>` : ""}
+        </ul>
+        ${actions("Salva", "Annulla")}`;
+      $('[data-act="ok"]', body).onclick = () => {
+        Store.setCatPlan(c.id, $("#ct-p", body).value);
+        buzz(); done(); rerender(); toast("Preventivo aggiornato");
+      };
+      $('[data-act="cancel"]', body).onclick = done;
+    });
   }
 
-  /* Ogni spesa è modificabile, comprese quelle precaricate.
-     Prima erano attenuate e senza affordance: sembravano bloccate. */
   function expenseRow(e, afterEdit) {
-    const line = e.lineId ? Store.lineOf(e.lineId) : null;
+    const cat = Store.catOf(e.cat);
+    const st = e.stop ? Store.stopsWithCost().find(x => x.key === e.stop) : null;
     const row = el("div", "exrow");
     row.innerHTML = `
       <button class="exrow__hit">
         <span class="exrow__d">${esc(dateShort(e.date))}</span>
         <span class="exrow__b">
-          <b>${esc(line ? line.line.label : (e.note || "Spesa fuori piano"))}</b>
-          <small>${esc(e.note || (line ? line.sec.section : "Fuori piano"))}${e.seed ? " · anticipato" : ""}</small>
+          <b>${esc(e.note || (st ? st.f.title : cat.label))}</b>
+          <small>${esc(cat.label)}${e.stop ? " · " + esc(e.stop.split("/")[0]) : ""}</small>
         </span>
         <span class="exrow__v">${e.cur === "NOK" ? nok(e.amount) : eur2(e.amount)}
           <i>${e.cur === "NOK" ? eur2(Store.toEur(e)) : ""}</i></span>
@@ -1330,7 +1381,7 @@ const Views = (() => {
 
     /* per categoria */
     const cats = el("div", "catbars");
-    const rows = TRIP.budget.map(sec => ({ sec, t: Store.sectionTotals(sec) }))
+    const rows = Store.cats().map(c => ({ sec: { section: c.label }, t: Store.catTotals(c.id) }))
       .filter(r => r.t.spent > 0)
       .sort((a, b) => b.t.spent - a.t.spent);
     if (rows.length) {
@@ -1599,10 +1650,14 @@ const Views = (() => {
       t: it.title, s: it.when, k: "Prenotazione",
       blob: [it.title, it.when, (it.meta || []).join(" "), it.code, Store.pinFor(it.code)].join(" "), go: () => App.go("prenota")
     })));
-    TRIP.budget.forEach(sec => sec.lines.forEach(l => ix.push({
-      t: l.label, s: `${sec.section} · ${eur(l.plan)}`, k: "Budget", blob: l.label + " " + (l.note || ""),
+    Store.cats().forEach(c => ix.push({
+      t: c.label, s: "Preventivo " + eur(c.plan), k: "Budget", blob: c.label,
       go: () => { S.tab.budget = "piano"; App.go("budget"); }
-    })));
+    }));
+    Store.stopsWithCost().forEach(x => ix.push({
+      t: x.f.title || x.f.name, s: `${x.day.id} · ${eur2(x.costo)}`, k: "Costo",
+      blob: (x.f.title || x.f.name), go: () => Extra.openDay(x.day.id)
+    }));
     TRIP.practical.forEach(sec => sec.items.forEach(i => ix.push({
       t: i.length > 70 ? i.slice(0, 70) + "…" : i, s: sec.title, k: "Pratico", blob: i,
       go: () => { S.tab.pratico = "info"; App.go("pratico"); }

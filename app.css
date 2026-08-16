@@ -1285,3 +1285,34 @@ input,textarea,select{font-size:16px}   /* sotto i 16px iOS zooma da solo */
 
 /* pulsante disabilitato: l'app è già installata */
 .btn:disabled{opacity:.45;pointer-events:none}
+
+/* ---- preventivo di una categoria ---- */
+.catrow{
+  display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  padding:10px 2px;border-bottom:1px solid var(--line);
+}
+.catrow__b{flex:1;min-width:0}
+.catrow__b b{display:block;font-size:13.4px;font-weight:600}
+.catrow__b small{display:block;font-size:12px;color:var(--fg3);margin-top:2px}
+.catrow__ic{flex:0 0 auto;opacity:.35}
+.catrow__ic svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
+.catstops{margin-top:4px}
+.catstops .bline{width:100%;text-align:left}
+.bsec__tot i{font-style:normal;color:var(--fg3)}
+
+/* ---- pulsante distruttivo negli sheet ---- */
+.btn--danger{
+  border-color:color-mix(in srgb,var(--open) 45%,transparent);
+  color:var(--open);
+}
+.btn--danger svg{stroke:var(--open)}
+.btn--danger:active{background:color-mix(in srgb,var(--open) 12%,transparent)}
+
+/* la matita è su ogni tappa, non solo sul pernotto */
+.stop .stop__hd{padding-right:58px}
+
+/* ---- voci senza orario: eliminabili come le tappe ---- */
+.flexrow{display:flex;align-items:flex-start;gap:10px}
+.flexrow__b{flex:1;min-width:0}
+.flexrow__x{flex:0 0 auto;padding:4px;opacity:.35}
+.flexrow__x svg{width:14px;height:14px;stroke:var(--open);fill:none;stroke-width:1.8}
